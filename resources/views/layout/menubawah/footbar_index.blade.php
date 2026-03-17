@@ -1,0 +1,647 @@
+@extends('layouts.materialize')
+@push('css')
+<link href="{{ asset('') }}assets/vendor/libs/quill/quill.snow.css" rel="stylesheet">
+<link href="{{ asset('') }}assets/vendor/libs/quill/quill.bubble.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('') }}assets/vendor/libs/quill/katex.css" />
+<link rel="stylesheet" href="{{ asset('') }}assets/vendor/libs/quill/editor.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.16.6/dist/sweetalert2.all.min.js"></script>
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/sweetalert2@10.10.1/dist/sweetalert2.min.css'>
+
+<style>
+    .swal2-container {
+    z-index: 10000;
+    }
+
+    .dd {
+    position: relative;
+    display: block;
+    margin: 0;
+    padding: 0;
+    /* max-width:600px; */
+    list-style: none;
+    font-size: 13px;
+    line-height: 20px;
+    margin-left: 45px;
+    }
+
+    .dd-list {
+        display: block;
+        position: relative;
+        margin: 10;
+        padding: 0;
+        list-style: none
+    }
+
+    .dd-list .dd-list {
+        padding-left: 30px
+    }
+
+    .dd-empty,.dd-item,.dd-placeholder {
+        display: block;
+        position: relative;
+        margin: 0;
+        padding: 0;
+        min-height: 20px;
+        font-size: 13px;
+        line-height: 20px
+    }
+
+    .dd-handle {
+        display: block;
+        height: 30px;
+        margin: 5px 0;
+        padding: 5px 10px;
+        color: #333;
+        text-decoration: none;
+        font-weight: 700;
+        border: 1px solid #ccc;
+        background: #fafafa;
+        border-radius: 3px;
+        box-sizing: border-box
+    }
+
+    .dd-handle:hover {
+        color: #2ea8e5;
+        background: #fff
+    }
+
+    .dd-item>button {
+        position: relative;
+        cursor: pointer;
+        float: left;
+        width: 25px;
+        height: 20px;
+        margin: 5px 0;
+        padding: 0;
+        text-indent: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        border: 0;
+        background: 0 0;
+        font-size: 12px;
+        line-height: 1;
+        text-align: center;
+        font-weight: 700
+    }
+
+    .dd-item>button:before {
+        display: block;
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        text-indent: 0
+    }
+
+    .dd-item>button.dd-expand:before {
+        content: '+'
+    }
+
+    .dd-item>button.dd-collapse:before {
+        content: '-'
+    }
+
+    .dd-expand {
+        display: none
+    }
+
+    .dd-collapsed .dd-collapse,.dd-collapsed .dd-list {
+        display: none
+    }
+
+    .dd-collapsed .dd-expand {
+        display: block
+    }
+
+    .dd-empty,.dd-placeholder {
+        margin: 5px 0;
+        padding: 0;
+        min-height: 30px;
+        background: #f2fbff;
+        border: 1px dashed #b6bcbf;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box
+    }
+
+    .dd-empty {
+        border: 1px dashed #bbb;
+        min-height: 100px;
+        background-color: #e5e5e5;
+        background-size: 60px 60px;
+        background-position: 0 0,30px 30px
+    }
+
+    .dd-dragel {
+        position: absolute;
+        pointer-events: none;
+        z-index: 9999
+    }
+
+    .dd-dragel>.dd-item .dd-handle {
+        margin-top: 0
+    }
+
+    .dd-dragel .dd-handle {
+        box-shadow: 2px 4px 6px 0 rgba(0,0,0,.1)
+    }
+
+    .dd-nochildren .dd-placeholder {
+        display: none
+    }
+
+    .dd3-content {
+        display: block;
+        margin: 7px;
+        padding: 5px 10px 5px 40px;
+        color: #333;
+        text-decoration: none;
+        font-weight: bold;
+        border: 1px solid #ccc;
+        background: #f0f0f0;
+        -webkit-box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+        cursor: default;
+    }
+
+        .dd3-content:hover {
+            color: #2ea8e5;
+        }
+
+    .dd-dragel > .dd3-item > .dd3-content {
+        margin: 0;
+    }
+
+    .dd3-item > button {
+        margin-left: 36px;
+    }
+
+    .dd3-handle {
+        position: absolute;
+        margin: 0;
+        left: 0;
+        top: 0;
+        cursor: move;
+        width: 36px;
+        text-indent: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        border: 1px solid #aaa;
+        background: #aaa;
+    }
+
+    .dd3-handle:before {
+        content: '≡';
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 3px;
+        width: 100%;
+        text-align: center;
+        text-indent: 0;
+        color: #fff;
+        font-size: 20px;
+        font-weight: normal;
+    }
+
+    .dd3-handle:hover {
+        background: #aaa;
+    }
+</style>
+@endpush
+
+        
+@section('content')
+<div class="container-xxl flex-grow-1 container-p-y">
+    <div class="d-flex justify-content-between">
+        <h4 class="fw-bold py-1 mb-3">
+            <span class="text-muted fw-light">Layout /</span>
+            Menu Bawah (Footbar)
+        </h4>
+    </div>
+
+  {{-- menu --}}
+  <div class="row justify-content-center">
+      <div class="col-md-12">
+          <div class="card">
+              <div class="card-body">
+                  <div class="header-title">
+                      <h5>Draggable Footbar</h5>
+                    
+                  </div>
+
+                  {{-- new --}}
+                  <div class="row mt-4 mb-4">
+                      <div class="col-md-8">
+                        <p id="success-indicator" style="display:none; margin-right: 10px;">
+                            <i class="fas fa-check-circle"></i> Footbar order has been saved
+                        </p>
+
+                          <div class="dd nestable-with-handle" id="nestable">
+                          
+                              {{-- {!! $navigations !!} --}}
+                          </div>
+
+                        
+                    
+                          <textarea id="Menu-output" class="form-control" hidden></textarea>
+                      </div>
+                      <div class="col-md-4">
+                          <div class="card">
+                              <div class="card-body">
+                                  <p>Drag items to move them in a different order <br> <span class="text-info">Supports (1) level deep</span></p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Create new item Modal -->
+                  <div class="modal fade" id="newModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen" role="document">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><span id="title_form">Create</span> Footbar item</h5>
+                            <button
+                            type="button"
+                            class="btn-close btn btn-light p-2 rounded-circle position-absolute"
+                            data-bs-dismiss="modal"
+                            aria-label="Close" style="right: 30px;z-index: 5;"></button>
+                        </div>
+
+                            <div class="modal-body" style="background:#f7f7f9;">
+                    
+                                <form id="form_footbar" action="" autocomplete="off">
+
+                                    <div class="form-floating form-floating-outline mb-3 mt-3" hidden>
+                                        <input type="text" class="form-control" id="judul_status" 
+                                        name="judul_status" placeholder=" " 
+                                        aria-describedby="floatingFootbarStatus">
+                                        <label for="Status">Status</label>
+                                        <div id="floatingFootbarStatus" class="form-text">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-floating form-floating-outline mb-3 mt-3" hidden>
+                                        <input type="text" class="form-control" id="id_footbar" name="id_footbar" 
+                                        placeholder=" " aria-describedby="floatingIDFootbar">
+                                        <label for="ID Footbar">ID Footbar</label>
+                                        <div id="floatingIDFootbar" class="form-text">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-floating form-floating-outline mb-3 mt-3">
+                                        <input type="text" class="form-control" id="judul_footbar" name="judul_footbar" 
+                                        placeholder=" " aria-describedby="floatingNavbarName">
+                                        <label for="Judul Navbar">Judul Menu Bawah</label>
+                                        <div id="floatingNavbarName" class="form-text">
+                                        </div>
+                                    </div>
+
+
+                                    <div class="form-floating form-floating-outline mb-3 mt-3" hidden>
+                                        <input type="text" class="form-control" id="no_urut" name="no_urut" 
+                                        placeholder=" " aria-describedby="floatingNoUrut">
+                                        <label for="No Urut">No Urut</label>
+                                        <div id="floatingNoUrut" class="form-text">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3 quill-editor" id="editor" name="editor" spellcheck="false">
+                                    </div>
+   
+                                    <textarea name="isi_footbar" id="isi_footbar" style="display:none;"
+                                        class="form-control mb-3" cols="30" rows="10">
+                                    </textarea>
+
+                                </form>
+                                            
+                                        
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="add-footbar"><span id="aksi_submit">Create</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                  {{-- new --}}
+              </div>
+          </div>
+      </div>
+  </div>
+
+</div>
+  
+@endsection
+
+@push('js')
+<script src="{{ asset('assets/vendor/libs/quill/katex.js') }}"></script>
+<script src="{{ asset('assets/vendor/libs/quill/quill.js') }}"></script>
+<script src="{{ asset('assets/vendor/libs/quill/image-resize.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill-blot-formatter@1.0.5/dist/quill-blot-formatter.min.js"></script>
+<script src="{{asset('assets/vendor/libs/Nestable2-master/jquery.nestable2.js')}}"></script>
+<script src="{{asset('assets/vendor/libs/Nestable2-master/dist/sortable-nestable.js')}}"></script>
+<script>
+    $(document).ready(function(){
+        $('.select2').select2({
+            dropdownParent: $('#newModal')
+        });
+
+      
+        
+        var toolbarOptions = [
+            ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
+            ['blockquote', 'code-block'],
+            [{ 'header': 1 }, { 'header': 2 }],               // custom button values
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'script': 'sub' }, { 'script': 'super' }],      // superscript/subscript
+            [{ 'indent': '-1' }, { 'indent': '+1' }],          // outdent/indent
+            [{ 'direction': 'rtl' }],                         // text direction
+            [{ 'size': ['small', false, 'large', 'huge'] }],  // custom dropdown
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
+            [{ 'font': [] }],
+            [{ 'align': [] }],
+            ['clean'],                                         // remove formatting button
+            ['image'],
+            ['video']
+            ];
+        var quill = new Quill('#editor', {
+            theme: 'snow',
+            modules: {
+            imageResize: {
+            displaySize: true
+            },
+            toolbar: {
+                    container: toolbarOptions,
+                }
+            }
+            });
+
+            // TEXT CHANGE IN EDITOR TEXT
+            quill.on('text-change',function (delta, oldDelta, source){
+                const { ops } = quill.getContents();
+                change_text_quill();
+            });
+
+            function change_text_quill(){
+                const quillContent  = quill.root.innerHTML;
+                document.getElementById('isi_footbar').value = quillContent;
+            }
+
+            function imageHandler() {
+            var range = this.quill.getSelection();
+            var value = prompt('What is the image URL');
+                if(value){
+                    this.quill.insertEmbed(range.index, 'image', value, Quill.sources.USER);
+                }
+            }
+
+
+            function tampil_editor_quill()
+            {
+                var isi_footbar = $('#isi_footbar').val();
+                var formname = $('#judul_status').val();
+                
+                if(formname=='edit'){
+                    quill.root.innerHTML=isi_footbar;
+                }
+            }
+
+        //clear disabled serialize form function
+        $.fn.serializeIncludeDisabled = function () {
+            let disabled = this.find(":input:disabled").removeAttr("disabled");
+            let serialized = this.serialize();
+            disabled.attr("disabled", "disabled");
+            return serialized;
+        };
+
+        nestableFootbar();
+        //load nestable2
+        function nestableFootbar(){
+            $('#nestable').html('');
+               $.ajax({  
+               url:`{{ route("nestableFootbar") }}`,
+               method:'get',  
+               data: { 
+                   _token: $('meta[name="csrf-token"]').attr('content')} ,  
+               dataType : "JSON",  
+                   success:function(data)  
+                   {  
+                   if (data) {  
+                            setTimeout(function(){// wait for 5 secs(2)
+                                $('#nestable').html(data.footbars); // then reload the page.(3)
+                            }, 100); 
+                       } 
+                   }
+               });  
+           }
+
+        $('#newModal').on('hidden.bs.modal', function () {
+            clearForm();
+        });
+
+        function clearForm(){
+            $("#form_footbar")[0].reset();
+            $('#id_parent').trigger('change');
+            $("#aksi_submit").text("Create");
+            $("#title_form").text("Create");
+            $('#id_footbar').removeAttr('disabled');
+        }
+
+        $(document).on('click', '.editFootbar', function () {
+            $("#aksi_submit").text("Update");
+            $("#title_form").text("Update");
+            var id = $(this).data("id");
+            $.ajax({  
+            url:`{{ route("getEditFootbar") }}`,
+            method:'POST',  
+            data: { 
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                id : id} ,  
+            dataType : "JSON",  
+                success:function(data)  
+                {  
+                if (data.status == "success") {  
+                        $('#id_footbar').val(data.hasil.id_footbar);
+                        $('#id_footbar').attr('disabled', true);
+                        $('#judul_footbar').attr('disabled', true);
+                        $('#no_urut').attr('disabled', true);
+                        $('#judul_status').attr('disabled', true);
+
+                        $('#judul_footbar').val(data.hasil.judul_footbar);
+                        $('#no_urut').val(data.hasil.no_urut);
+                        $('#isi_footbar').val(data.hasil.isi_footbar);
+                        $('#judul_status').val('edit');
+                       
+                    } 
+                         tampil_editor_quill(); 
+                }
+            });  
+        });
+            
+
+        $(document).on('click', '#add-footbar', function () {
+            var judul_status =  $('#judul_status').val();
+            if(judul_status=='edit'){
+                save_edit_nav();
+            }
+        });
+
+        function save_edit_nav(){
+            var formdata = $('#form_footbar').serializeIncludeDisabled();
+            $.ajax({  
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+            url:`{{ route("footbar.storeUpdate") }}`,
+            method:'POST',  
+            data: formdata,  
+            dataType : "JSON",  
+                success:function(data)  
+                {  
+                if (data.status == "success") {  
+                    Swal.fire('Saved!',  data.message + ' !','success'); 
+                    $('#newModal').modal('hide');
+                    nestableFootbar(); 
+                    } 
+                        else{
+                    Swal.fire('Changes are not saved', '', 'info');
+                    }
+                }
+            });  
+        }
+
+       
+      /*   $('.dd-expand').hide();
+        $('.dd-collapse').on(); */
+    var moveEl={from:"",to:""};
+    var hovering="";
+    var PreventOnloadSave=0;
+    var flag=0;
+    var draggedID;
+
+    var updateOutput = function(e){
+
+        var list   = e.length ? e : $(e.target),
+            output = list.data('output');
+
+        var previousVal = output.val();
+        var newVal = window.JSON.stringify(list.nestable('serialize'));
+        //console.log ("Previous value: " + previousVal );
+        if (window.JSON) {
+            output.val( newVal );
+
+        } else {
+            output.val('JSON browser support required for this demo.');
+        }
+    };
+
+    $('.dd').nestable({
+        maxDepth: 1,
+        group:1, 
+    }).on('change', updateOutput);
+
+    $('#nestable').nestable().on('dragEnd', function(event, item, source, destination, position) {
+        var currentItem = $(item).attr('data-id');
+        var itemParent = $(item).parent().parent().attr('data-id');
+
+        var order = new Array();
+     
+        $("li[data-id='"+currentItem +"']").find('ol:first').children().each(function(index,elem) {
+            order[index] = $(elem).attr('data-id');
+        });
+
+        console.log(order.length);
+        if (order.length === 0){
+            var rootOrder = new Array();
+            $("li[data-id='"+currentItem +"']").parent().children().each(function(index,elem) {
+                rootOrder[index] = $(elem).attr('data-id');
+             });
+
+            /* $("#nestable > ol > li").each(function(index,elem) {
+            rootOrder[index] = $(elem).attr('data-id');
+            }); */
+        }
+
+            console.log('order', JSON.stringify(order));
+            console.log('rootOrder', JSON.stringify(rootOrder));
+            console.log('id', currentItem);
+            console.log('id_parent', itemParent);
+   
+        let serial = $('.dd').nestable('serialize');
+        var datastring = JSON.stringify(serial);
+        let asNestedSet = $('.dd').nestable('asNestedSet');
+
+       
+        var token = $('form').find( 'input[name=_token]' ).val();    
+        $.post('{{url("reorder/footbar/")}}',
+                    {
+                        source : currentItem,
+                        destination: itemParent,
+                        order:JSON.stringify(order),
+                        rootOrder:JSON.stringify(rootOrder),
+                        // list :datastring,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    function(data) {
+                    // console.log('data '+data); 
+                    })
+                .done(function() {
+                    $( "#success-indicator" ).fadeIn(100).delay(1000).fadeOut();
+                })
+                .fail(function() {  })
+                .always(function() {  });
+                
+        // console.log('dragEnd', event, item, source, destination, position);
+    })
+
+    updateOutput($('#nestable').data('output', $('#Menu-output')));
+
+
+
+    $('#nestable3').nestable();
+    //--------------------------------------------------
+
+   
+ 
+    $(".dd").on("mouseover",function(){
+        // console.log("mouseover1");
+        hovering = $(this).attr("id");
+        // console.log(hovering);
+    });
+
+
+    $(".dd").on("mousedown",function(){
+       /*  console.log("");
+        console.log("--------------------------- Mousedown on an element"); */
+
+        setTimeout(function(){
+            if( $("body").find(".dd-dragel") ){
+                
+                draggedID = $("body").find(".dd-dragel").find(".dd-item").attr("data-id");
+                console.log("draggging ID: "+draggedID);
+                
+                //console.log( $("body").find(".dd-dragel").html() );
+                //console.log( $("body").find(".dd-dragel").find(".dd-item").length );
+                if( $("body").find(".dd-dragel").find(".dd-item").length>1){
+                    console.log("Dragged element is red... No can do since maxDepth is 1.");
+                    $("body").find(".dd-dragel").css("background-color","red");
+                }
+            }
+        },100);
+
+        console.log( "FROM: "+hovering );
+        moveEl.from=hovering;
+    });
+
+    $(".dd").on("mouseup",function(){
+       /*  console.log( "TO: "+hovering );
+        console.log(""); */
+        moveEl.to=hovering;
+    }); 
+});
+
+    
+</script>
+
+@endpush

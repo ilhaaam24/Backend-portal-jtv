@@ -1,0 +1,38 @@
+/* replace #666cff => #2f6eba */
+/* replace #5a5fe0 => #17457b */
+/* add attribute spellcheck="false" ql-container  */
+/* mdi-image-multiple-outline  */
+
+.shadow-0 {
+    box-shadow: none !important;
+}
+
+.ql-container {
+    font-family: Heebo,sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    color: #242424 !important;
+}
+
+.ql-container p {
+    margin-bottom: 1rem !important;
+}
+
+.form-control, .light-style .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #242424;
+}
+
+.form-control:focus {
+    color: black;
+}
+
+.form-floating.form-floating-outline > .form-control:focus ~ label, .form-floating.form-floating-outline > .form-control:not(:placeholder-shown) ~ label, .form-floating.form-floating-outline > .form-select:focus ~ label, .form-floating.form-floating-outline > .form-select:not(:placeholder-shown) ~ label {
+    font-weight: 600;
+    color: #242424;
+}
+
+html:not([dir=rtl]) .form-floating:has(.select2) label {
+    margin-left: 0.7813rem;
+    font-weight: 600;
+    color: #242424;
+}
