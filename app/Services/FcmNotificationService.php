@@ -30,6 +30,11 @@ class FcmNotificationService
         }
 
         $notification = Notification::create($title, $body, $imageUrl);
+        
+        // Tambahkan image ke data payload agar bisa dihandle custom oleh aplikasi (misal: BigPicture style)
+        if ($imageUrl && !isset($data['image'])) {
+            $data['image'] = $imageUrl;
+        }
 
         // FCM batch limit = 500 tokens per request
         $chunks = array_chunk($tokens, 500);
@@ -67,9 +72,15 @@ class FcmNotificationService
         }
 
         $notification = Notification::create($title, $body, $imageUrl);
+        
+        // Tambahkan image ke data payload agar bisa dihandle custom oleh aplikasi
+        if ($imageUrl && !isset($data['image'])) {
+            $data['image'] = $imageUrl;
+        }
+
         $message = CloudMessage::new()
-            ->withNotification($notification)
-            ->withData($data);
+                ->withNotification($notification)
+                ->withData($data);
 
         try {
             $report = $this->messaging->sendMulticast($message, $tokens);

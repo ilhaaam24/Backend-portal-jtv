@@ -461,21 +461,17 @@ class AdminBeritaController extends Controller
             $result['message'] = "SEO Berita sudah Digunakan!";
             return response()->json($result);
         }else{
-            $createBerita = TbBerita::create($param_insert);
+            $create = TbBerita::create($param_insert);
 
-            if($createBerita){
-                $lastId = $createBerita->id_berita;
+            if($create){
+                $lastId = $create->id_berita;
                 //Create Hit Counter
-              $create_hitcounter = HitCounter::create($param_hit_counter);
-                if($create_hitcounter){
-                    //Create into Tb_berita
-                    $create = TbBerita::create($param_insert);
-                    $lastId = $create->id_berita;
-                }else{
-                    $result['status'] = "error";
-                    $result['message'] = "Gagal Input Berita Baru!";
-                    return response()->json($result);
-                }
+                HitCounter::create($param_hit_counter);
+            } else {
+                $result['status'] = "error";
+                $result['message'] = "Gagal Input Berita Baru!";
+                return response()->json($result);
+            }
         }
 
         if($request->tags_berita){
@@ -523,8 +519,11 @@ class AdminBeritaController extends Controller
                     // Bangun URL gambar berita untuk notifikasi
                     $imageUrl = null;
                     if ($request->addimage_berita && $request->tipe_gambar_utama === 'image') {
-                        $imageUrl = config('jp.path_url_be') . config('jp.path_img') . $request->addimage_berita;
+                        $baseUrl = rtrim(config('jp.path_url_be'), '/');
+                        $imgPath = ltrim(config('jp.path_img'), '/');
+                        $imageUrl = $baseUrl . '/' . $imgPath . $request->addimage_berita;
                     }
+
 
                     app(FcmNotificationService::class)->sendToAll(
                         title: $request->judul_berita,
@@ -549,7 +548,6 @@ class AdminBeritaController extends Controller
         }
         return abort(500);
     }
-}
 
     public function TrashBerita(Request $request)
     {
@@ -758,8 +756,11 @@ class AdminBeritaController extends Controller
                     // Bangun URL gambar berita untuk notifikasi
                     $imageUrl = null;
                     if ($request->addimage_berita && $request->tipe_gambar_utama === 'image') {
-                        $imageUrl = config('jp.path_url_be') . config('jp.path_img') . $request->addimage_berita;
+                        $baseUrl = rtrim(config('jp.path_url_be'), '/');
+                        $imgPath = ltrim(config('jp.path_img'), '/');
+                        $imageUrl = $baseUrl . '/' . $imgPath . $request->addimage_berita;
                     }
+
 
                     app(FcmNotificationService::class)->sendToAll(
                         title: $request->judul_berita,
