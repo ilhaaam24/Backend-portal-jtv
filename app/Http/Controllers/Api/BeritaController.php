@@ -38,7 +38,7 @@ class BeritaController extends Controller
      *
      * @return void
      */
-public function detailBerita($id, News $News){
+    public function detailBerita($id, News $News){
         // cache()->flush();
         $title = Berita::select('judul_berita', 'id_berita')->where('seo_berita', $id)->firstOrFail();
 
@@ -73,7 +73,10 @@ public function detailBerita($id, News $News){
         $q_beritadetail->id_berita = $idberita;
         // ---------------------------------
 
-        $q_beritadetail->setAttribute('seo_biro' , $get_biro->biro->seo);
+        // --- [FIX: SAFETY CHECK BIRO] ---
+        $seo_biro = ($get_biro && $get_biro->biro) ? $get_biro->biro->seo : null;
+        $q_beritadetail->setAttribute('seo_biro' , $seo_biro);
+        // ---------------------------------
 
         return DetailBeritaResource::make($q_beritadetail)->additional($section);
     }
@@ -344,24 +347,29 @@ public function detailBerita($id, News $News){
         }
     }
 
-    public function searchBerita(Request $search)
+    public function searchBerita(Request $request)
     {
-        $search_item = $search->search;
+        $search_item = $request->input('search');
 
-        $limit = request('limit') ?? config('jp.api_paginate');
-        $limit = $limit >  config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
+        if (!$search_item) {
+            return response()->json(['data' => []]);
+        }
 
-        return  cache()->lock("get_Search$search_item".now(), 10)->get(
-            fn () => cache()->remember('Search'.$search_item.now(), now()->addMinutes(5), function () use ($search_item , $limit) {
-                   return Berita::latest('date_perubahan_berita')
-                   ->where('status_berita', 'Publish')
-                   ->where('judul_berita','LIKE','%'.$search_item.'%')
-                   ->where(function ($query)  use ($search_item) {
-                    return $query->where('judul_berita', 'like','%'.$search_item.'%')
-                                ->orWhere('title', 'like','%'.$search_item.'%')
-                                ->orWhere('other_product_numbers','%'.$search_item.'%');
-                        })
-                   ->paginate($limit);
+        $limit = $request->input('limit') ?? config('jp.api_paginate');
+        $limit = $limit > config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
+
+        // Gunakan cache agar tidak berat
+        return cache()->lock("get_RagSearch:" . $search_item, 10)->get(
+            fn() => cache()->remember('RagSearch:' . $search_item, now()->addMinutes(5), function () use ($search_item, $limit) {
+                return Berita::with(['kategori'])
+                    ->where('status_berita', 'Publish')
+                    ->where(function ($query) use ($search_item) {
+                        $query->where('judul_berita', 'like', '%' . $search_item . '%')
+                              ->orWhere('artikel_berita', 'like', '%' . $search_item . '%')
+                              ->orWhere('rangkuman_berita', 'like', '%' . $search_item . '%');
+                    })
+                    ->latest('date_publish_berita')
+                    ->paginate($limit);
             })
         );
     }

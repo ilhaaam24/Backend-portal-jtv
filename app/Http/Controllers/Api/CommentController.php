@@ -62,7 +62,7 @@ class CommentController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $user = Auth::user(); 
+        $user = $request->user(); 
         if (!$user) {
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
@@ -91,9 +91,9 @@ class CommentController extends Controller
     }
 
     // POST: Toggle Like (Like / Unlike)
-    public function toggleLike($id)
+    public function toggleLike(Request $request, $id)
     {
-        $user = Auth::user();
+        $user = $request->user();
         if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
@@ -133,7 +133,7 @@ class CommentController extends Controller
         $comment = Comment::find($id);
         if (!$comment) return response()->json(['message' => 'Not found'], 404);
         
-        $currentUser = Auth::user();
+        $currentUser = $request->user();
         if ($comment->user_id !== $currentUser->id_penulis) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -145,12 +145,12 @@ class CommentController extends Controller
     }
 
     // DELETE: Hapus Komentar
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $comment = Comment::find($id);
         if (!$comment) return response()->json(['message' => 'Komentar tidak ditemukan'], 404);
         
-        $currentUser = Auth::user();
+        $currentUser = $request->user();
         // Cek kepemilikan
         if ($comment->user_id !== $currentUser->id_penulis) {
             return response()->json(['message' => 'Unauthorized'], 403);

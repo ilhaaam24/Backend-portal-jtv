@@ -42,7 +42,7 @@ class DetailBeritaResource extends JsonResource
         'seo_author' => $this->seo_pengguna,
         'pic_author' => $this->imageNewsUsers() ?? '',
         'desc_author' => '',
-        'hit' => $this->hit,
+        'hit' => $this->pengunjung_berita,
         'editor_berita' => $this->editor_berita,
         'tipe_gambar_utama' => $this->tipe_gambar_utama,
         ];

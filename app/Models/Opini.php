@@ -12,7 +12,7 @@ class Opini extends Model
 {
     use HasFactory, HasRoles;
 
-    protected $table = 'v_opini';
+    protected $table = 'tb_opini';
 
     protected $primaryKey = 'id_opini';
     protected $guarded = [];
@@ -33,8 +33,8 @@ class Opini extends Model
         $img = $this->gambar_opini;
         //   config('jp.path_url_be').config('jp.path_img').$img ?? '';
         
-        if (Storage::exists("upload-gambar/$img")) {
-            $path_server = asset("assets/upload-gambar/$img");
+        if (Storage::disk('jtv')->exists("upload-gambar/$img")) {
+            $path_server = url("assets/upload-gambar/$img");
         }else{
             $path_server =  asset(config('jp.path_url_no_img'));
         }
@@ -43,16 +43,15 @@ class Opini extends Model
 
     public function imageOpiniUsers()
     {
-        $img = $this->image_penulis;
+        // Gunakan relasi penulis karena image_penulis tidak ada di tb_opini
+        $img = $this->penulis->image_penulis ?? 'userpic.png';
 
-        if (Storage::exists("foto-profil/$img")) {
-            $path_server = asset("assets/foto-profil/$img");
+        if (Storage::disk('jtv')->exists("foto-profil/$img")) {
+            $path_server = url("assets/foto-profil/$img");
         }else{
             $path_server =  asset(config('jp.path_url_no_img'));
         }
         return $path_server;
-
-      
     }
 
 }

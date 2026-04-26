@@ -81,11 +81,16 @@ class PertanyaanController extends Controller
         $limit = $request->input('limit') ?? config('jp.api_paginate', 10);
         $limit = $limit > config('jp.maxlimit', 100) ? config('jp.maxlimit', 100) : $limit;
 
-        // 2. QUERY LANGSUNG (Bypass Service biar logicnya pasti bener)
-        // Cari Pertanyaan dimana 'kepada' == ID SAYA
-        $data = Pertanyaan::query()
-            ->where('kepada', $user->id_penulis)
-            ->with(['dari_user', 'kepada_user']) // Eager Load relasi biar cepet (Pastikan relasi ada di Model Pertanyaan)
+        $query = Pertanyaan::query();
+        if ($id === 'sent') {
+            // Pertanyaan yang DIKIRIM oleh user
+            $query->where('dari', $user->id_penulis);
+        } else {
+            // Pertanyaan yang MASUK (Inbox)
+            $query->where('kepada', $user->id_penulis);
+        }
+
+        $data = $query->with(['dari_user', 'kepada_user'])
             ->latest('tanggal_pertanyaan')
             ->paginate($limit);
 

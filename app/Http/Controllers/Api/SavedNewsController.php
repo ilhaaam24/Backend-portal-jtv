@@ -5,14 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\TbSimpanBerita;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class SavedNewsController extends Controller
 {
     // Menyimpan berita (POST /api/saved-news/{id_berita})
-    public function store($id_berita)
+    public function store(Request $request, $id_berita)
     {
-        $userId = Auth::id();
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Silakan login terlebih dahulu.'], 401);
+        }
+
+        $userId = $user->id_penulis;
 
         // Cek apakah sudah disimpan
         $existingSave = TbSimpanBerita::where('id_user', $userId)
@@ -33,9 +38,12 @@ class SavedNewsController extends Controller
     }
 
     // Menghapus berita (DELETE /api/saved-news/{id_berita})
-    public function destroy($id_berita)
+    public function destroy(Request $request, $id_berita)
     {
-        $userId = Auth::id();
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+        
+        $userId = $user->id_penulis;
 
         $savedEntry = TbSimpanBerita::where('id_user', $userId)
                                     ->where('id_berita', $id_berita)
@@ -47,9 +55,12 @@ class SavedNewsController extends Controller
     }
 
     // Mengecek status (GET /api/saved-news/check/{id_berita})
-    public function check($id_berita)
+    public function check(Request $request, $id_berita)
     {
-        $userId = Auth::id();
+        $user = $request->user();
+        if (!$user) return response()->json(['is_saved' => false]);
+        
+        $userId = $user->id_penulis;
 
         $isSaved = TbSimpanBerita::where('id_user', $userId)
                                  ->where('id_berita', $id_berita)
@@ -59,9 +70,12 @@ class SavedNewsController extends Controller
     }
 
     // Mendapatkan daftar (GET /api/saved-news)
-    public function index()
+    public function index(Request $request)
     {
-        $savedNews = TbSimpanBerita::where('id_user', Auth::id())
+        $user = $request->user();
+        if (!$user) return response()->json(['data' => []], 401);
+
+        $savedNews = TbSimpanBerita::where('id_user', $user->id_penulis)
                                    ->with('berita')
                                    ->latest('created_at')
                                    ->get();

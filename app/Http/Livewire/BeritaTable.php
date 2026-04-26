@@ -99,7 +99,7 @@ class BeritaTable extends DataTableComponent
             return ['default' => true];
         })
         ->setTdAttributes(function(Column $column) {
-            if ($column->isField('hit')) {
+            if ($column->isField('pengunjung_berita')) {
               return [
               'class' => 'bg-red-500 text-center',
               ];
@@ -154,8 +154,8 @@ class BeritaTable extends DataTableComponent
                ->label(
                 function ($row)  { 
                      $id_pengguna = $row->id_pengguna;
-                    return $pengguna = Pengguna::where('id_pengguna', $id_pengguna);
-                                $getbiro = $pengguna->biro;
+                     $pengguna = Pengguna::where('id_pengguna', $id_pengguna)->first();
+                     $getbiro = $pengguna?->biro;
                     $nama_biro = '';
                     if($getbiro){
                         $nama_biro = $getbiro->nama_biro; 
@@ -193,7 +193,7 @@ class BeritaTable extends DataTableComponent
                 ->label(function($row) {
                      $id_pengguna = $row->id_pengguna;
                     $pengguna = Pengguna::where('id_pengguna', $id_pengguna)->first();
-                    $getbiro = $pengguna->biro;
+                    $getbiro = $pengguna?->biro;
                   $nama_biro = '';
                   if($getbiro){
                       $nama_biro = $getbiro->nama_biro; 
@@ -237,7 +237,7 @@ class BeritaTable extends DataTableComponent
             ->html()
             ->hideIf(Auth::user()->getRoleNames()[0] != 'admin'),
 
-            Column::make("Hit", "hit")                
+            Column::make("Hit", "pengunjung_berita")                
                 ->searchable()
                 ->sortable(),
             Column::make("Publish", "date_publish_berita")
@@ -335,12 +335,13 @@ class BeritaTable extends DataTableComponent
 
     public function builder(): Builder
     {
-        $role_id = auth()->user()->roles[0]->id;
-        $penggunas = auth()->user()->pengguna->biro->penggunaz->pluck('id_pengguna');
+        $role_id = auth()->user()->roles[0]->id ?? null;
+        $penggunas = auth()->user()->pengguna?->biro?->penggunaz?->pluck('id_pengguna');
+        
         return Berita::query()
         ->when($role_id, function ($query) use ($role_id,  $penggunas) {
-            if($role_id == 4){
-            return $query->whereIn('id_pengguna',  $penggunas);
+            if($role_id == 4 && $penggunas){
+                return $query->whereIn('id_pengguna',  $penggunas);
             }
          })
         ->latest('is_berita_terbaru')
