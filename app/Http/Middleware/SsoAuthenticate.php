@@ -40,18 +40,27 @@ class SsoAuthenticate
         $penulis = Cache::get($cacheKey);
 
         if (!$penulis) {
-            // Coba validasi ke SSO server
-            $ssoUser = $this->validateTokenFromSso($bearerToken);
+            // [BARU] Cek apakah ini Sanctum Token (Lokal)
+            // Penting agar user yang register/login lokal bisa tetap akses API
+            $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+            if ($tokenModel && $tokenModel->tokenable instanceof Penulis) {
+                $penulis = $tokenModel->tokenable;
+            }
 
-            if ($ssoUser) {
-                // SSO berhasil → resolve user lokal & cache
-                $penulis = $this->resolveLocalUser($ssoUser);
-                if ($penulis) {
-                    Cache::put($cacheKey, $penulis, now()->addMinutes(self::CACHE_TTL_MINUTES));
+            if (!$penulis) {
+                // Coba validasi ke SSO server
+                $ssoUser = $this->validateTokenFromSso($bearerToken);
+
+                if ($ssoUser) {
+                    // SSO berhasil → resolve user lokal & cache
+                    $penulis = $this->resolveLocalUser($ssoUser);
+                    if ($penulis) {
+                        Cache::put($cacheKey, $penulis, now()->addMinutes(self::CACHE_TTL_MINUTES));
+                    }
+                } else {
+                    // SSO gagal/timeout → fallback 1: decode JWT untuk ambil sso_id
+                    $penulis = $this->resolveFromJwt($bearerToken);
                 }
-            } else {
-                // SSO gagal/timeout → fallback 1: decode JWT untuk ambil sso_id
-                $penulis = $this->resolveFromJwt($bearerToken);
             }
         }
 

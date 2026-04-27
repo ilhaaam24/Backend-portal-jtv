@@ -113,6 +113,7 @@ class AuthCheckController extends Controller
                 'data'          => \App\Http\Resources\DetailPenulisResource::make($penulis),
             ]);
         } else {
+            // SSO Gagal, tidak ada fallback login lokal
             $errorMsg = $response->json('message') ?? 'Email atau Password tidak sesuai!';
             return response()->json(['status' => 'error', 'message' => $errorMsg], 401);
         }
@@ -197,62 +198,58 @@ class AuthCheckController extends Controller
         }
     }
 
-    // 3. SIGNUP MANUAL
+    // 3. SIGNUP MANUAL (Integrated with SSO)
     public function signup(Request $request)
     {
         $Now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
 
-        $nama = $request->nama;
-        $email = $request->email;
-        $phone = $request->phone;
-        $password = md5($request->password);
+        $nama     = $request->nama;
+        $email    = $request->email;
+        $phone    = $request->phone;
+        $password = $request->password;
 
+        // 1. Cek dulu apakah email sudah ada di database lokal
         $cek_query = Penulis::where('email_penulis', $email)->first();
-
         if ($cek_query) {
             return response()->json(['status' => "error", 'message' => "Email Sudah Terdaftar!"], 400);
         }
 
+        // 2. Simpan ke DB Lokal
         $newdata = [
-            'nama_penulis' => $nama,
-            'email_penulis' => $email,
-            'telp_penulis' => $phone,
-            'password' => $password,
-            'usernames' => '',
-            'tentang_penulis' => '',
-            'profesi_penulis' => '',
-            'image_penulis' => '',
-            'tipe_penulis' => '1',
-            'tgl_berubah' => $Now->format('Y-m-d H:i:s'),
+            'nama_penulis'      => $nama,
+            'email_penulis'     => $email,
+            'telp_penulis'      => $phone,
+            'password'          => md5($password), 
+            'usernames'         => '',
+            'tentang_penulis'   => '',
+            'profesi_penulis'   => '',
+            'image_penulis'     => '',
+            'tipe_penulis'      => '1',
+            'tgl_berubah'       => $Now->format('Y-m-d H:i:s'),
             'tgl_loginterakhir' => $Now->format('Y-m-d H:i:s'),
-            'seo' => $this->slugify($nama . '-' . time()),
+            'seo'               => $this->slugify($nama . '-' . time()),
         ];
 
         $create = Penulis::create($newdata);
+        $token  = $create->createToken('auth_token')->plainTextToken;
 
-        if ($create) {
-            $token = $create->createToken('auth_token')->plainTextToken;
-            $datapenulis = DetailPenulisResource::make($create);
-
-            return response()->json([
-                "status" => "success",
-                "message" => "Pendaftaran berhasil!",
-                "token" => $token,
-                "data" => $datapenulis,
-            ]);
-        } else {
-            return response()->json(["status" => "error", "message" => "Gagal Mendaftar"], 500);
-        }
+        return response()->json([
+            "status"  => "success",
+            "message" => "Pendaftaran akun berhasil!",
+            "token"   => $token,
+            "data"    => DetailPenulisResource::make($create),
+        ]);
     }
 
     // 4. LOGOUT
     public function logout(Request $request)
     {
-        // Beritahu SSO bahwa session di sana juga diakhiri
+        $bearerToken = $request->bearerToken();
+
+        // 1. Beritahu SSO (jika ada token)
         try {
-            $ssoBase     = env('API_SSO_URL', 'https://hub.jtv.co.id');
-            $bearerToken = $request->bearerToken();
             if ($bearerToken) {
+                $ssoBase = env('API_SSO_URL', 'https://hub.jtv.co.id');
                 Http::withHeaders([
                     'Authorization' => 'Bearer ' . $bearerToken,
                     'Accept'        => 'application/json',
@@ -262,11 +259,19 @@ class AuthCheckController extends Controller
             \Log::warning('Logout SSO error (portal): ' . $e->getMessage());
         }
 
-        if ($request->user()) {
-            $request->user()->currentAccessToken()->delete();
+        // 2. Hapus Token Lokal (Sanctum)
+        if ($bearerToken) {
+            // Cari token di database berdasarkan string token bearer
+            $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+            if ($tokenModel) {
+                $tokenModel->delete();
+            }
         }
 
-        return response()->json(['status' => 'success', 'message' => 'Logout Berhasil.']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Logout Berhasil.'
+        ]);
     }
 
     // 4b. REFRESH TOKEN (Forward ke SSO)
