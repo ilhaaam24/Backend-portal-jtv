@@ -36,7 +36,7 @@ class OpiniWargaTable extends DataTableComponent
                     ->latest('id_opini')
                     ->latest('date_publish_opini')
                     ->latest('date_input_opini')
-                    ->select('v_opini.*');
+                    ->select('tb_opini.*');
     }
 
     public function configure(): void

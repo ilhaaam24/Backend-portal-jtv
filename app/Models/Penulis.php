@@ -53,8 +53,8 @@ class Penulis extends Authenticatable
     public function imagePenulis()
     {
         $img = $this->image_penulis;
-        if (Storage::exists("foto-profil/$img")) {
-            $path_server = asset("assets/foto-profil/$img");
+        if (Storage::disk('jtv')->exists("foto-profil/$img")) {
+            $path_server = url("assets/foto-profil/$img");
         } else {
             $path_server = asset(config('jp.path_url_no_img'));
         }

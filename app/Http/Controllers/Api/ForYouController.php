@@ -13,20 +13,23 @@ class ForYouController extends Controller
     // 1. API LIST KATEGORI (Aman, gak gue ubah)
     public function getCategories()
     {
-        $categories = NewKategori::where('status_kategori_berita', 1)
-            ->orderBy('urut', 'desc')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->id_kategori_berita,
-                    'name' => $item->nama_kategori_berita,
-                ];
-            });
+        // Cache kategori selama 60 menit biar gak lemot terus
+        return cache()->remember('categories_list_api', 60 * 60, function () {
+            $categories = NewKategori::where('status_kategori_berita', 1)
+                ->orderBy('urut', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id_kategori_berita,
+                        'name' => $item->nama_kategori_berita,
+                    ];
+                });
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $categories
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => $categories
+            ]);
+        });
     }
 
     // 2. API BERITA REKOMENDASI (FIXED LOGIC)

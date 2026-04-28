@@ -11,9 +11,10 @@ class News
 {
     public function getHeadline($id, $limit)
     {
-        return  cache()->lock("get_BeritaHeadline".$id.now(), 10)->get(
-            fn () => cache()->remember('BeritaHeadline'.$id.now(), now()->addMinutes(5), function () use ($id, $limit) {
+        return  cache()->lock("get_BeritaHeadline:".$id, 10)->get(
+            fn () => cache()->remember('BeritaHeadline:'.$id, now()->addMinutes(5), function () use ($id, $limit) {
                 $getbiro = Biro::where('seo', $id)->first();
+                if (!$getbiro) return [];
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return Berita::latest('date_publish_berita')
@@ -31,9 +32,10 @@ class News
     public function getTerbaru($id, $limit)
     {   
         // cache()->flush();
-        return  cache()->lock("get_BeritaTerbaru".$id.now(), 10)->get(
-            fn () => cache()->remember('BeritaTerbaru'.$id.now(), now()->addMinutes(1), function () use ($id, $limit) {
+        return  cache()->lock("get_BeritaTerbaru:".$id, 10)->get(
+            fn () => cache()->remember('BeritaTerbaru:'.$id, now()->addMinutes(1), function () use ($id, $limit) {
                     $getbiro = Biro::where('seo', $id)->first();
+                    if (!$getbiro) return [];
                     $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
                    return Berita::latest('is_berita_terbaru')
                     ->with(['pengguna.biro'])
@@ -49,15 +51,11 @@ class News
 
     public function getTerbaik($limit)
     {   
-        cache()->flush();
-        return  cache()->lock("get_BeritaTerbaik".now(), 10)->get(
-            fn () => cache()->remember('BeritaTerbaik'.now(), now()->addMinutes(1), function () use ($limit) {
-                   return Berita::latest('is_berita_terbaik')
+        return  cache()->lock("get_BeritaTerbaik", 10)->get(
+            fn () => cache()->remember('BeritaTerbaik', now()->addMinutes(5), function () use ($limit) {
+                   return Berita::latest('date_publish_berita')
                     ->with(['pengguna.biro'])
-                    ->latest('date_publish_berita') 
                     ->where('status_berita', 'Publish')
-                    ->where('is_berita_terbaik', 1)
-                    ->with('pengguna')
                     ->paginate($limit);
              
             })
@@ -66,10 +64,10 @@ class News
 
     public function getPilihan($id, $limit)
     {
-        // cache()->flush();
-        return  cache()->lock("get_BeritaPilihan".$id.now(), 10)->get(
-            fn () => cache()->remember('BeritaPilihan'.$id.now(), now()->addMinutes(5), function () use ($id, $limit) {
+        return  cache()->lock("get_BeritaPilihan:".$id, 10)->get(
+            fn () => cache()->remember('BeritaPilihan:'.$id, now()->addMinutes(5), function () use ($id, $limit) {
                     $getbiro = Biro::where('seo', $id)->first();
+                    if (!$getbiro) return [];
                     $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return Berita::latest('date_publish_berita')
@@ -85,18 +83,17 @@ class News
 
     public function getPopuler($id, $limit)
     {
-        //   cache()->flush();
-        return  cache()->lock("get_BeritaPopuler".$id.now(), 10)->get(
-            fn () => cache()->remember('BeritaPopuler'.$id.now(), now()->addMinutes(5), function () use ($id,$limit) {
+        return  cache()->lock("get_BeritaPopuler:".$id, 10)->get(
+            fn () => cache()->remember('BeritaPopuler:'.$id, now()->addMinutes(5), function () use ($id,$limit) {
                 $getbiro = Biro::where('seo', $id)->first();
+                if (!$getbiro) return [];
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
-                   return Berita::latest('hit')
+                   return Berita::orderByRaw('CAST(pengunjung_berita AS UNSIGNED) DESC')
                    ->with(['pengguna.biro'])
                    ->whereIn('id_pengguna', $penggunas)
                    ->where('status_berita', 'Publish')
-                   ->where('expired_berita2', '<=','0')
-                   ->where('hit', '>=','0')
+                   ->whereRaw('CAST(pengunjung_berita AS UNSIGNED) >= 0')
                    ->paginate($limit);
              
             })
@@ -105,10 +102,10 @@ class News
 
     public function getBreaking($id, $limit)
     {
-        // cache()->flush();
-        return  cache()->lock("get_BeritaBreaking".$id.now(), 10)->get(
-            fn () => cache()->remember('BeritaBreaking'.$id.now(), now()->addMinutes(5), function () use ($id, $limit) {
+        return  cache()->lock("get_BeritaBreaking:".$id, 10)->get(
+            fn () => cache()->remember('BeritaBreaking:'.$id, now()->addMinutes(5), function () use ($id, $limit) {
                 $getbiro = Biro::where('seo', $id)->first();
+                if (!$getbiro) return [];
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return  Berita::latest('date_publish_berita')
@@ -165,8 +162,8 @@ class News
 
     public function getSearch($id, $limit)
     {
-        return  cache()->lock("get_Search$id".now(), 10)->get(
-            fn () => cache()->remember('Search'.$id.now(), now()->addMinutes(5), function () use ($id , $limit) {
+        return  cache()->lock("get_Search:".$id, 10)->get(
+            fn () => cache()->remember('Search:'.$id, now()->addMinutes(5), function () use ($id , $limit) {
                    return Berita::latest('date_perubahan_berita')
                    ->where('status_berita', 'Publish')
                    ->where('judul_berita','LIKE','%'.$id.'%')
@@ -177,9 +174,9 @@ class News
 
     public function getIndexBerita($search, $penulis, $kategori, $mulai, $sampai, $limit)
     {
-       
-        return  cache()->lock("get_SearchIndex".now(), 10)->get(
-        fn () => cache()->remember('SearchIndex'.now(), now()->addMinutes(5), function () use ($search, $penulis, $kategori, $mulai, $sampai, $limit) {
+        $cacheKey = 'SearchIndex:'.md5($search.$penulis.$kategori.$mulai.$sampai.$limit);
+        return  cache()->lock("get_SearchIndex:".$cacheKey, 10)->get(
+        fn () => cache()->remember($cacheKey, now()->addMinutes(5), function () use ($search, $penulis, $kategori, $mulai, $sampai, $limit) {
                 return Berita::latest('date_perubahan_berita')
                 ->where('status_berita', 'Publish')
                 ->where(function ($query)  use ($search, $penulis, $kategori, $mulai, $sampai) {
@@ -211,13 +208,14 @@ class News
 
     public function getTag($id, $limit)
     {
-        return  cache()->lock("get_Tag", 10)->get(
-            fn () => cache()->remember('Tags'.$id, now()->addMinutes(2), function () use ($id , $limit) {
-                        return Berita::latest('v_berita.date_perubahan_berita')
-                        ->join('tagging', 'v_berita.id_berita','=','tagging.id_berita')
+        return  cache()->lock("get_Tag:".$id, 10)->get(
+            fn () => cache()->remember('Tags:'.$id, now()->addMinutes(2), function () use ($id , $limit) {
+                        return Berita::latest('tb_berita.date_perubahan_berita')
+                        ->join('tagging', 'tb_berita.id_berita','=','tagging.id_berita')
                         ->join('tb_tag', 'tagging.id_tag','=','tb_tag.id_tag')
-                        ->where('v_berita.status_berita', 'Publish')
+                        ->where('tb_berita.status_berita', 'Publish')
                         ->where('tb_tag.seo_tag',$id)
+                        ->select('tb_berita.*')
                         ->paginate($limit);  
             })
         );

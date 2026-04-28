@@ -15,7 +15,7 @@ class Berita extends Model
 {
     use HasFactory, HasRoles;
 
-    protected $table = 'v_berita';
+    protected $table = 'tb_berita';
     protected $primaryKey = 'id_berita';
 
     /**
@@ -72,7 +72,9 @@ class Berita extends Model
 
     public function imageNewsUsers()
     {
-        $img = $this->gambar_pengguna;
+        $img = $this->pengguna ? $this->pengguna->gambar_pengguna : null;
+        if (!$img) return asset(config('jp.path_url_no_img'));
+        
         $filepath_img = config('jp.path_url_be') . config('jp.path_img_profile') . $img; //path server
         if (Storage::exists("foto-profil/$img")) {
             return asset("assets/foto-profil/$img");

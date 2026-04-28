@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\IklanController;
 use App\Http\Controllers\Api\KategoriBeritaController;
 use App\Http\Controllers\Api\OpiniController;
 use App\Http\Controllers\Api\VideoController;
-use App\Http\Controllers\Api\PenulisController;
+use App\Http\Controllers\Api\PenulisController;             
 use App\Http\Controllers\Api\SorotController;
 use App\Http\Controllers\Api\LivereportController;
 use App\Http\Controllers\Api\PertanyaanController;
@@ -61,6 +61,9 @@ Route::prefix('news')->controller(BeritaController::class)->group(function () {
     Route::get('list-author', 'listAuthor');
 });
 
+// AI RAG Search
+Route::post('/rag/search', [BeritaController::class, 'searchBerita']);
+
 // For You (Public Part)
 Route::prefix('news')->group(function () {
     Route::get('/categories-list', [ForYouController::class, 'getCategories']);
@@ -72,6 +75,7 @@ Route::post('/auth/sign-up', [AuthCheckController::class, 'signup']);
 Route::post('/auth/sign-in', [AuthCheckController::class, 'index']);
 Route::post('/auth/firebase', [AuthCheckController::class, 'firebase']);
 Route::post('/auth/reset-password', [AuthCheckController::class, 'resetPassword']);
+Route::post('/auth/refresh', [AuthCheckController::class, 'refresh']); // Refresh SSO token
 
 // Konten Lain (Public)
 Route::prefix('sorot')->controller(SorotController::class)->group(function () {
@@ -83,7 +87,7 @@ Route::prefix('sorot')->controller(SorotController::class)->group(function () {
 Route::get('/berita/{id}/comments', [CommentController::class, 'index']);
 
 // Protected Routes (Hanya User Login)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth.sso')->group(function () {
     Route::post('/berita/{id}/comments', [CommentController::class, 'store']);
     Route::put('/comments/{id}', [CommentController::class, 'update']);
     Route::delete('/comments/{id}', [CommentController::class, 'destroy']);
@@ -150,7 +154,7 @@ Route::post('/fetch-user', [UserController::class, 'fetchUser']);
 
 // 2. PRIVATE ROUTES (BUTUH LOGIN / TOKEN) 🔥
 // ---------------------------------------------------
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth.sso')->group(function () {
 
     // Test User
     Route::get('/user', function (Request $request) {
@@ -175,6 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Pertanyaan User
     Route::get('/akun/list-pertanyaan/all', [PertanyaanController::class, 'akunTanyaList']);
+    Route::get('/akun/list-pertanyaan/{id}', [PertanyaanController::class, 'akunTanyaList']);
     Route::post('/pertanyaan/submit', [PertanyaanController::class, 'submitTanya']);
     Route::post('/pertanyaan/jawab', [PertanyaanController::class, 'jawabPertanyaan']);
 });
@@ -197,13 +202,12 @@ Route::put('/curhatan/{id}', [CurhatanController::class, 'update']);
 Route::delete('/curhatan/{id}', [CurhatanController::class, 'destroy']);
 // --- API CURHAT WARGA END ---
 
-Route::get('/akun/list-pertanyaan/{id}', [PertanyaanController::class, 'akunTanyaList']);
 
 
 /* -------------------------END API ADMIN FRONT END USER---------------------------- */
 
 // Saved News Routes
-Route::middleware(['auth:sanctum'])->prefix('saved-news')->group(function () {
+Route::middleware(['auth.sso'])->prefix('saved-news')->group(function () {
     Route::post('/{id_berita}', [SavedNewsController::class, 'store']);
     Route::delete('/{id_berita}', [SavedNewsController::class, 'destroy']);
     Route::get('/check/{id_berita}', [SavedNewsController::class, 'check']);

@@ -17,42 +17,110 @@ use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AuthCheckController extends Controller
 {
-    // 1. LOGIN BIASA (MD5 Legacy Support)
+    // 1. LOGIN BIASA (Forward to SSO)
     public function index(Request $request)
     {
         $Now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
 
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
         $email = $request->email;
-        $password = md5($request->password);
+        $password = $request->password;
 
-        $penulis = Penulis::where('email_penulis', $email)->first();
+        // Auto-generate payload for SSO
+        $ssoBase = env('API_SSO_URL', 'https://hub.jtv.co.id');
+        $loginUrl = rtrim($ssoBase, '/') . '/api/login';
 
-        if ($penulis) {
-            if ($password == $penulis->password) {
-                // Hapus token lama & Bikin baru
+        $payload = [
+            'email' => $email,
+            'password' => $password,
+            'device_uuid' => (string) Str::uuid(),
+            'device_name' => $request->header('User-Agent', 'JTV Portal Web'),
+            'platform' => 'Web',
+            'app_id' => env('APP_ID', 'portal-jtv-123'),
+        ];
+
+        try {
+            $response = Http::withOptions([
+                'connect_timeout' => 5,
+                'timeout' => 10,
+            ])->post($loginUrl, $payload);
+
+            if ($response->successful() && isset($response['access_token'])) {
+                $ssoData   = $response->json();
+                $ssoUser   = $ssoData['user'] ?? null;
+
+                if (!$ssoUser || (!isset($ssoUser['email']) && !isset($ssoUser['id']))) {
+                    return response()->json(['status' => 'error', 'message' => 'Invalid SSO response data'], 500);
+                }
+
+                $ssoId = $ssoUser['id'] ?? null;
+                $emailSso = $ssoUser['email'] ?? null;
+
+                $penulis = null;
+                if ($ssoId) {
+                    $penulis = Penulis::where('sso_id', $ssoId)->first();
+                }
+                if (!$penulis && $emailSso) {
+                    $penulis = Penulis::where('email_penulis', $emailSso)->first();
+                }
+
+                if (!$penulis) {
+                    $nama  = $ssoUser['name'] ?? 'User';
+                    $phone = $ssoUser['phone'] ?? $ssoUser['phone_number'] ?? $ssoUser['no_telp'] ?? '';
+
+                    $penulis = Penulis::create([
+                        'sso_id'           => $ssoId,
+                        'nama_penulis'     => $nama,
+                        'email_penulis'    => $emailSso,
+                        'telp_penulis'     => $phone,
+                        'password'         => '',
+                        'usernames'        => '',
+                        'tentang_penulis'  => '',
+                        'profesi_penulis'  => '',
+                        'image_penulis'    => '',
+                        'tipe_penulis'     => '1',
+                        'tgl_berubah'      => $Now->format('Y-m-d H:i:s'),
+                        'tgl_loginterakhir'=> $Now->format('Y-m-d H:i:s'),
+                        'seo'              => $this->slugify($nama . '-' . time()),
+                    ]);
+                }
+
                 $penulis->tokens()->delete();
-                $token = $penulis->createToken('auth_token')->plainTextToken;
+                $sanctumToken = $penulis->createToken('auth_token')->plainTextToken;
 
                 $penulis->update([
-                    'tgl_loginterakhir' => $Now->format('Y-m-d H:i:s')
+                    'sso_id' => $ssoId,
+                    'tgl_loginterakhir'=> $Now->format('Y-m-d H:i:s'),
                 ]);
 
-                return response()->json([
-                    'status'  => "success",
-                    'message' => "Anda berhasil masuk akun",
-                    'token'   => $token,
-                    'data'    => $penulis,
-                ]);
-            } else {
-                return response()->json(['status' => "error", 'message' => "Password Tidak Sesuai !"], 401);
-            }
+            return response()->json([
+                'status'        => 'success',
+                'message'       => 'Anda berhasil masuk akun',
+                'access_token'  => $ssoData['access_token'],
+                'refresh_token' => $ssoData['refresh_token'] ?? null,
+                'token_type'    => $ssoData['token_type'] ?? 'Bearer',
+                'expires_in'    => $ssoData['expires_in'] ?? null,
+                'token'         => $sanctumToken,
+                'data'          => \App\Http\Resources\DetailPenulisResource::make($penulis),
+            ]);
         } else {
-            return response()->json(['status' => "error", 'message' => "User tidak ditemukan"], 404);
+            // SSO Gagal, tidak ada fallback login lokal
+            $errorMsg = $response->json('message') ?? 'Email atau Password tidak sesuai!';
+            return response()->json(['status' => 'error', 'message' => $errorMsg], 401);
         }
+    } catch (\Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Layanan SSO sedang gangguan.'], 500);
     }
+}
 
     // 2. LOGIN / REGISTER via FIREBASE
     public function firebase(Request $request)
@@ -130,62 +198,127 @@ class AuthCheckController extends Controller
         }
     }
 
-    // 3. SIGNUP MANUAL
+    // 3. SIGNUP MANUAL (Integrated with SSO)
     public function signup(Request $request)
     {
         $Now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
 
-        $nama = $request->nama;
-        $email = $request->email;
-        $phone = $request->phone;
-        $password = md5($request->password);
+        $nama     = $request->nama;
+        $email    = $request->email;
+        $phone    = $request->phone;
+        $password = $request->password;
 
+        // 1. Cek dulu apakah email sudah ada di database lokal
         $cek_query = Penulis::where('email_penulis', $email)->first();
-
         if ($cek_query) {
             return response()->json(['status' => "error", 'message' => "Email Sudah Terdaftar!"], 400);
         }
 
+        // 2. Simpan ke DB Lokal
         $newdata = [
-            'nama_penulis' => $nama,
-            'email_penulis' => $email,
-            'telp_penulis' => $phone,
-            'password' => $password,
-            'usernames' => '',
-            'tentang_penulis' => '',
-            'profesi_penulis' => '',
-            'image_penulis' => '',
-            'tipe_penulis' => '1',
-            'tgl_berubah' => $Now->format('Y-m-d H:i:s'),
+            'nama_penulis'      => $nama,
+            'email_penulis'     => $email,
+            'telp_penulis'      => $phone,
+            'password'          => md5($password), 
+            'usernames'         => '',
+            'tentang_penulis'   => '',
+            'profesi_penulis'   => '',
+            'image_penulis'     => '',
+            'tipe_penulis'      => '1',
+            'tgl_berubah'       => $Now->format('Y-m-d H:i:s'),
             'tgl_loginterakhir' => $Now->format('Y-m-d H:i:s'),
-            'seo' => $this->slugify($nama . '-' . time()),
+            'seo'               => $this->slugify($nama . '-' . time()),
         ];
 
         $create = Penulis::create($newdata);
+        $token  = $create->createToken('auth_token')->plainTextToken;
 
-        if ($create) {
-            $token = $create->createToken('auth_token')->plainTextToken;
-            $datapenulis = DetailPenulisResource::make($create);
-
-            return response()->json([
-                "status" => "success",
-                "message" => "Pendaftaran berhasil!",
-                "token" => $token,
-                "data" => $datapenulis,
-            ]);
-        } else {
-            return response()->json(["status" => "error", "message" => "Gagal Mendaftar"], 500);
-        }
+        return response()->json([
+            "status"  => "success",
+            "message" => "Pendaftaran akun berhasil!",
+            "token"   => $token,
+            "data"    => DetailPenulisResource::make($create),
+        ]);
     }
 
     // 4. LOGOUT
     public function logout(Request $request)
     {
-        if ($request->user()) {
-            $request->user()->currentAccessToken()->delete();
-            return response()->json(['status' => 'success', 'message' => 'Logout Berhasil, Token Hangus.']);
+        $bearerToken = $request->bearerToken();
+
+        // 1. Beritahu SSO (jika ada token)
+        try {
+            if ($bearerToken) {
+                $ssoBase = env('API_SSO_URL', 'https://hub.jtv.co.id');
+                Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $bearerToken,
+                    'Accept'        => 'application/json',
+                ])->post(rtrim($ssoBase, '/') . '/api/logout');
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Logout SSO error (portal): ' . $e->getMessage());
         }
-        return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+
+        // 2. Hapus Token Lokal (Sanctum)
+        if ($bearerToken) {
+            // Cari token di database berdasarkan string token bearer
+            $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+            if ($tokenModel) {
+                $tokenModel->delete();
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Logout Berhasil.'
+        ]);
+    }
+
+    // 4b. REFRESH TOKEN (Forward ke SSO)
+    public function refresh(Request $request)
+    {
+        $refreshToken = $request->input('refresh_token');
+
+        if (!$refreshToken) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Refresh token diperlukan',
+            ], 400);
+        }
+
+        try {
+            $ssoBase = env('API_SSO_URL', 'https://hub.jtv.co.id');
+            $response = Http::withHeaders([
+                'Accept'       => 'application/json',
+                'Content-Type' => 'application/json',
+            ])->post(rtrim($ssoBase, '/') . '/api/refresh-token', [
+                'refresh_token' => $refreshToken,
+            ]);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $response->json('message') ?? 'Refresh token gagal diperbarui',
+                ], $response->status());
+            }
+
+            $data = $response->json();
+
+            return response()->json([
+                'status'        => 'success',
+                'access_token'  => $data['access_token'],
+                'refresh_token' => $data['refresh_token'] ?? null,
+                'token_type'    => $data['token_type'] ?? 'Bearer',
+                'expires_in'    => $data['expires_in'] ?? null,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Refresh token error (portal): ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Refresh token gagal diperbarui',
+            ], 500);
+        }
     }
 
     // 5. PROFILE
@@ -195,7 +328,7 @@ class AuthCheckController extends Controller
         if ($user) {
             return response()->json([
                 'nama'  => $user->nama_penulis,
-                'photo' => config('jp.path_url_be') . config('jp.path_img_profile') . $user->image_penulis,
+                'photo' => $user->imagePenulis(),
                 'email' => $user->email_penulis,
                 'phone' => $user->telp_penulis,
                 'seo'   => $user->seo,
@@ -421,6 +554,48 @@ class AuthCheckController extends Controller
             'telp_penulis' => $phone,
             'tgl_berubah' => now(),
         ];
+
+        // --- HANDLE FOTO PROFIL (BASE64) ---
+        if ($request->foto) {
+            try {
+                $imageData = $request->foto;
+                
+                // Pisahkan header base64 (data:image/png;base64,...)
+                if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
+                    $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                    $extension = strtolower($type[1]); // png, jpg, jpeg
+                    
+                    if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                        throw new \Exception('Format gambar tidak didukung');
+                    }
+
+                    $imageData = base64_decode($imageData);
+                    if ($imageData === false) {
+                        throw new \Exception('Gagal decode base64');
+                    }
+                } else {
+                    throw new \Exception('Format base64 tidak valid');
+                }
+
+                // Nama file unik
+                $fileName = Str::slug($nama) . '-' . time() . '.' . $extension;
+                $path = "foto-profil/" . $fileName;
+
+                // Simpan ke Storage menggunakan disk 'jtv' (public/assets)
+                Storage::disk('jtv')->put($path, $imageData);
+
+                // Hapus foto lama jika ada
+                if ($penulis->image_penulis && Storage::disk('jtv')->exists("foto-profil/" . $penulis->image_penulis)) {
+                    Storage::disk('jtv')->delete("foto-profil/" . $penulis->image_penulis);
+                }
+
+                $param_update['image_penulis'] = $fileName;
+
+            } catch (\Exception $e) {
+                Log::error('[ProfileUpdate] Gagal upload foto: ' . $e->getMessage());
+                // Lanjut update data lain, tapi foto dilewati
+            }
+        }
 
         if ($password != '' && $password != null) {
             $newpassword = md5($password);

@@ -38,8 +38,8 @@ class OpiniController extends Controller
                     ->select('tb_penulis.nama_penulis','tb_penulis.seo','tb_penulis.tentang_penulis','tb_penulis.image_penulis',
                     'tb_penulis.facebook','tb_penulis.instagram', 'tb_penulis.tiktok', 'tb_penulis.twitter', 'tb_penulis.youtube'
                     )
-                    ->leftjoin('v_opini', 'v_opini.id_penulis_opini', '=', 'tb_penulis.id_penulis')
-                    ->leftjoin('tb_tipetulisan', 'v_opini.tipe_opini', '=', 'tb_tipetulisan.seo')
+                    ->leftjoin('tb_opini', 'tb_opini.id_penulis_opini', '=', 'tb_penulis.id_penulis')
+                    ->leftjoin('tb_tipetulisan', 'tb_opini.tipe_opini', '=', 'tb_tipetulisan.seo')
                     ->where('kategori', $id)
                     ->groupBy('tb_penulis.nama_penulis','tb_penulis.seo','tb_penulis.tentang_penulis','tb_penulis.image_penulis',
                     'tb_penulis.facebook','tb_penulis.instagram', 'tb_penulis.tiktok', 'tb_penulis.twitter', 'tb_penulis.youtube')

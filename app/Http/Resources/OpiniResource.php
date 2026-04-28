@@ -22,14 +22,14 @@ class OpiniResource extends JsonResource
             'caption'   => $this->caption_gambar_opini,
             'status'    => $this->status_opini,
             'date'      => $this->date_publish_opini,
-            'author'      => $this->nama_penulis ?? '',
-            'seo_author'      => $this->seo_penulis,
+            'author'      => $this->penulis->nama_penulis ?? '',
+            'seo_author'      => $this->penulis->seo ?? '',
 
             'pic_author'  => $this->imageOpiniUsers(),
-            'desc_author' => $this->tentang_penulis,
-            'category' => $this->category,
-            'seo_category' => $this->seo_category,
-            'type_category' => $this->type_category,
+            'desc_author' => $this->penulis->tentang_penulis ?? '',
+            'category' => $this->id_kategori_opini, // Fallback ke ID kategori jika view tidak ada
+            'seo_category' => $this->seo_opini,
+            'type_category' => $this->tipe_opini,
         ];
     }
 
