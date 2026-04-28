@@ -70,6 +70,26 @@ Route::prefix('news')->group(function () {
     Route::get('/for-you', [ForYouController::class, 'getRecommendations']);
 });
 
+// --- FCM Push Notification ---
+// Public: tidak perlu auth (guest & logged-in sama-sama bisa register token)
+Route::post('/fcm/register', [FcmTokenController::class, 'register']);
+Route::post('/fcm/unregister', [FcmTokenController::class, 'unregister']);
+
+// 🛠️ Route Test untuk Debugging di Produksi
+Route::get('/fcm/test-send', function() {
+    try {
+        $fcm = app(\App\Services\FcmNotificationService::class);
+        $fcm->sendToAll('Test Notif', 'Ini adalah notif uji coba dari server produksi');
+        return response()->json(['status' => 'success', 'message' => 'Coba cek HP Anda!']);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error', 
+            'message' => $e->getMessage(),
+            'file_credentials' => config('firebase.projects.app.credentials'),
+            'exists' => file_exists(base_path(config('firebase.projects.app.credentials')))
+        ]);
+    }
+});
 // Auth Public
 Route::post('/auth/sign-up', [AuthCheckController::class, 'signup']);
 Route::post('/auth/sign-in', [AuthCheckController::class, 'index']);
