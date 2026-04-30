@@ -88,6 +88,7 @@ class Berita extends Model
         // Menghubungkan id_kategori (di Berita) ke id_kategori_berita (di NewKategori)
         return $this->belongsTo(NewKategori::class, 'id_kategori', 'id_kategori_berita');
     }
+   
 
     public function data_asli()
     {
