@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SavedNewsResource;
 use App\Models\TbSimpanBerita;
 use Illuminate\Http\Request;
 
@@ -76,10 +77,11 @@ class SavedNewsController extends Controller
         if (!$user) return response()->json(['data' => []], 401);
 
         $savedNews = TbSimpanBerita::where('id_user', $user->id_penulis)
-                                   ->with('berita')
+                                   ->with(['berita.pengguna.biro', 'berita.kategori', 'berita.data_asli'])
                                    ->latest('created_at')
                                    ->get();
 
-        return response()->json(['data' => $savedNews]);
+        // return response()->json(['data' => $savedNews]);
+        return SavedNewsResource::collection($savedNews);
     }
 }
