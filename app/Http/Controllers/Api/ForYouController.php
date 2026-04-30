@@ -145,7 +145,9 @@ class ForYouController extends Controller
                 'seo'           => $item->seo_berita,
                 'photo'         => $item->imageNews(), // Pastikan method ini ada di Model Berita
                 'date'          => $item->date_publish_berita,
+                'author'        => $item->data_asli->jabatan_author,
                 'category_name' => optional($item->kategori)->nama_kategori_berita ?? 'Umum',
+                'seo_category'  => optional($item->kategori)->seo_kategori_berita,
                 'score'         => $score,
             ];
         });

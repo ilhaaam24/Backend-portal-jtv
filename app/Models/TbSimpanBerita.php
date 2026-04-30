@@ -19,6 +19,6 @@ class TbSimpanBerita extends Model
     // Relasi ke Berita
     public function berita()
     {
-        return $this->belongsTo(TbBerita::class, 'id_berita', 'id_berita');
+        return $this->belongsTo(Berita::class, 'id_berita', 'id_berita');
     }
 }

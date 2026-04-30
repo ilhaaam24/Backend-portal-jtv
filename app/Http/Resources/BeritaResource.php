@@ -18,6 +18,7 @@ class BeritaResource extends JsonResource
         // return parent::toArray($request);
 
         return [
+            'id' => $this->id_berita,
             'title' => $this->judul_berita,
             'seo' => $this->seo_berita,
             'seo_biro' => $this->pengguna->biro->seo,
