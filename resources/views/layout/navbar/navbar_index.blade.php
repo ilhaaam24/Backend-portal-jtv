@@ -310,13 +310,18 @@
                                         </div>
                                     </div>
 
+                                    <div class="form-floating form-floating-outline mb-3 mt-3" >
+                                        <select class="form-select" id="is_active" name="is_active">
+                                            <option value="1">Active</option>
+                                            <option value="0">Inactive</option>
+                                        </select>
+                                        <label for="is_active">Status</label>
+                                    </div>
+
                                     <div class="form-floating form-floating-outline mb-3 mt-3" hidden>
-                                        <input type="text" class="form-control" id="status_navbar" 
-                                        name="status_navbar" placeholder=" " 
-                                        aria-describedby="floatingNavbarStatus">
-                                        <label for="Status">Status</label>
-                                        <div id="floatingNavbarStatus" class="form-text">
-                                        </div>
+                                        <input type="text" class="form-control" id="form_method" name="form_method" 
+                                        placeholder=" ">
+                                        <label for="form_method">Form Method</label>
                                     </div>
 
                                     <div class="form-floating form-floating-outline mb-3 mt-3" hidden>
@@ -325,6 +330,11 @@
                                         <label for="ID Navbar">ID Navbar</label>
                                         <div id="floatingIDNavbar" class="form-text">
                                         </div>
+                                    </div>
+                                    <div class="mb-3 mt-3">
+                                        <label for="image" class="form-label">Icon / Image</label>
+                                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                                        <div id="image_preview" class="mt-2"></div>
                                     </div>
 
                                 </form>
@@ -396,11 +406,13 @@
             $('#id_parent').trigger('change');
             $("#aksi_submit").text("Create");
             $("#title_form").text("Create");
+            $('#form_method').val('');
+            $('#image_preview').html('');
         }
 
         $(document).on('change', '#id_parent', function () {
             var id = $(".select2 option:selected").val();
-            var status_form = $('#status_navbar').val();
+            var status_form = $('#form_method').val();
                 if(status_form==''){
                     getLastNavbar(id);
                 }
@@ -424,9 +436,20 @@
                             $('#id_navbar').val(data.hasil.id_navbar);
                             $('#judul_navbar').val(data.hasil.judul_navbar);
                             $('#navbar_urut').val(data.hasil.no_urut);
-                            $('#status_navbar').val('edit');
+                            $('#form_method').val('edit');
+                            $('#is_active').val(data.hasil.is_active);
                             $('#id_parent').val(data.hasil.id_parent);
                             $('#id_parent').trigger('change');
+                            
+                            if (data.hasil.image_url) {
+                                var previewUrl = data.hasil.image_url;
+                                if (!previewUrl.startsWith('http')) {
+                                    previewUrl = '{{ asset("assets/navbar") }}/' + previewUrl;
+                                }
+                                $('#image_preview').html('<img src="' + previewUrl + '" style="max-width: 100px;">');
+                            } else {
+                                $('#image_preview').html('');
+                            }
                         } 
                            
                     }
@@ -487,8 +510,8 @@
             }
 
             $(document).on('click', '#add-navbar', function () {
-               var status_navbar =  $('#status_navbar').val();
-               if(status_navbar=='edit'){
+               var form_method =  $('#form_method').val();
+               if(form_method=='edit'){
                     save_edit_nav();
                }else{
                     save_new_nav();
@@ -498,7 +521,7 @@
 
             //SAVE new Navigasi
             function save_new_nav(){
-                var formdata = $('#form_navbar').serializeIncludeDisabled();
+                var formdata = new FormData($('#form_navbar')[0]);
                 $.ajax({  
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -507,6 +530,8 @@
                 method:'POST',  
                 data: formdata,  
                 dataType : "JSON",  
+                contentType: false,
+                processData: false,
                     success:function(data)  
                     {  
                     if (data.status == "success") {  
@@ -523,7 +548,7 @@
             }
 
             function save_edit_nav(){
-                var formdata = $('#form_navbar').serializeIncludeDisabled();
+                var formdata = new FormData($('#form_navbar')[0]);
                 $.ajax({  
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -532,6 +557,8 @@
                 method:'POST',  
                 data: formdata,  
                 dataType : "JSON",  
+                contentType: false,
+                processData: false,
                     success:function(data)  
                     {  
                     if (data.status == "success") {  

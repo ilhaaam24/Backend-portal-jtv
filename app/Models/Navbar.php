@@ -24,12 +24,19 @@ class Navbar extends Model
     $result = null;
     foreach($navbar as $item)
         if ($item->id_parent == $id_parent) {
+        $statusBadge = $item->is_active ? '' : ' <span class="badge bg-danger">Inactive</span>';
+        $imageUrl = $item->image_url;
+        if ($imageUrl && !filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+            $imageUrl = asset('assets/navbar/' . $imageUrl);
+        }
+        $icon = $imageUrl ? '<img src="'.$imageUrl.'" style="height:20px; margin-right:10px;">' : '';
+        
         $result .= "<li class='dd-item dd3-item' data-id='{$item->id_navbar}' data-order='{$item->urut}'>
         <div class='dd-handle dd3-handle'>
             <i class='fas fa-arrows-alt'></i>
         </div>
         <div class='dd3-content'>
-        {$item->judul_navbar} 
+        {$icon} {$item->judul_navbar} {$statusBadge}
         <span style='float:right;'>
         <a href='#' data-bs-toggle='modal' data-bs-target='#newModal'
         data-form='edit' data-id='{$item->id_navbar}' class='editNavbar'>Edit</a>

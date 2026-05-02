@@ -22,6 +22,7 @@ class KategoriBeritaResource extends JsonResource
             'seq' => $this->no_urut,
             'id' => $this->id_navbar,
             'rubrik' => $this->rubrik,
+            'image_url' => $this->image_url,
             'submenu' => $this->subnavbar,
         ];
     }
