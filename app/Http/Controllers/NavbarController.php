@@ -109,7 +109,20 @@ class NavbarController extends Controller
         // return $data;
         $validated = $request->validate([
             'judul_navbar' => 'required',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
+
+        $imageFullUrl = null;
+        if ($request->hasFile('image')) {
+            $path = public_path('assets/navbar');
+            if (!file_exists($path)) {
+                mkdir($path, 0755, true);
+            }
+            $image = $request->file('image');
+            $imageName = 'nav_' . time() . '.' . $image->extension();
+            $image->move($path, $imageName);
+            $imageFullUrl = asset('assets/navbar/' . $imageName);
+        }
 
         $param_insert = [
            
@@ -117,14 +130,15 @@ class NavbarController extends Controller
             'tag_judul' => $this->slugify($request->judul_navbar),
             
             'id_parent' => $request->id_parent,
-            'is_active' => 1,
+            'is_active' => $request->is_active ?? 1,
+            'image_url' => $imageFullUrl,
             'rubrik' => 1,
             'ket_navbar' => 0,
             'no_urut' => $request->navbar_urut,   
         ];
     
         $create = Navbar::create($param_insert);
-        $lastId = $create->id;
+        $lastId = $create->id_navbar;
         if($create) {
             $result['lastId'] = $lastId;
             $result['status'] = "success";
@@ -132,7 +146,7 @@ class NavbarController extends Controller
             return response()->json($result);
         }else{
             $result['status'] = "failed";
-            $result['message'] = "Navbar Updated Failed!";
+            $result['message'] = "Navbar Created Failed!";
             return response()->json($result);
         }
         return abort(500);
@@ -144,7 +158,7 @@ class NavbarController extends Controller
         // return $data;
         $validated = $request->validate([
             'judul_navbar' => 'required',
-           
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
         $param_update = [
@@ -152,7 +166,30 @@ class NavbarController extends Controller
             'id_parent' => $request->id_parent,
             'tag_judul' => $this->slugify($request->judul_navbar),
             'no_urut' => $request->navbar_urut, 
+            'is_active' => $request->is_active,
         ];
+
+        if ($request->hasFile('image')) {
+            $path = public_path('assets/navbar');
+            if (!file_exists($path)) {
+                mkdir($path, 0755, true);
+            }
+
+            // Delete old image if exists
+            $oldNavbar = Navbar::where('id_navbar', $request->id_navbar)->first();
+            if ($oldNavbar && $oldNavbar->image_url) {
+                $oldFilename = basename($oldNavbar->image_url);
+                $oldPath = $path . '/' . $oldFilename;
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $image = $request->file('image');
+            $imageName = 'nav_' . time() . '.' . $image->extension();
+            $image->move($path, $imageName);
+            $param_update['image_url'] = asset('assets/navbar/' . $imageName);
+        }
     
         $update = Navbar::where('id_navbar',  $request->id_navbar)
         ->update($param_update);
