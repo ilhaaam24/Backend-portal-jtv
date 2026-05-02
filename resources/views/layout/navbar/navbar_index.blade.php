@@ -379,7 +379,7 @@
         function nestableNavbar(){
             $('#nestable').html('');
                $.ajax({  
-               url:`{{ route("nestableNavbar") }}`,
+               url: "/nestableNavbar",
                method:'get',  
                data: { 
                    _token: $('meta[name="csrf-token"]').attr('content')} ,  
@@ -424,7 +424,7 @@
                 $("#title_form").text("Update");
                 var id = $(this).data("id");
                 $.ajax({  
-                url:`{{ route("getEditNavbar") }}`,
+                url: "/getEditNavbar",
                 method:'POST',  
                 data: { 
                     _token: $('meta[name="csrf-token"]').attr('content'),
@@ -494,7 +494,7 @@
             
         function getLastNavbar(id){
                 $.ajax({  
-                url:`{{ route("getLastNavbar") }}`,
+                url: "/getLastNavbar",
                 method:'POST',  
                 data: { 
                     _token: $('meta[name="csrf-token"]').attr('content'),
@@ -509,7 +509,8 @@
                 });  
             }
 
-            $(document).on('click', '#add-navbar', function () {
+            $(document).on('click', '#add-navbar', function (e) {
+               e.preventDefault();
                var form_method =  $('#form_method').val();
                if(form_method=='edit'){
                     save_edit_nav();
@@ -526,7 +527,7 @@
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
-                url:`{{ route("navbar.store") }}`,
+                url: "/navbar/store",
                 method:'POST',  
                 data: formdata,  
                 dataType : "JSON",  
@@ -553,7 +554,7 @@
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
-                url:`{{ route("navbar.storeUpdate") }}`,
+                url: "/navbar/storeUpdate",
                 method:'POST',  
                 data: formdata,  
                 dataType : "JSON",  
@@ -575,7 +576,7 @@
 
             function deleteNavbar(id){
                $.ajax({  
-               url:`{{ route("deleteNavbar") }}`,
+               url: "/deleteNavbar",
                method:'POST',  
                data: { 
                    _token: $('meta[name="csrf-token"]').attr('content'),
@@ -657,7 +658,7 @@
 
        
         var token = $('form').find( 'input[name=_token]' ).val();    
-        $.post('{{url("reorder/navbar/")}}',
+        $.post('/reorder/navbar',
                     {
                         source : currentItem,
                         destination: itemParent,
