@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\FcmToken;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Contract\Messaging;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
 
@@ -42,7 +44,11 @@ class FcmNotificationService
         foreach ($chunks as $chunk) {
             $message = CloudMessage::new()
                 ->withNotification($notification)
-                ->withData($data);
+                ->withData($data)
+                ->withAndroidConfig(AndroidConfig::fromArray(['priority' => 'high']))
+                ->withApnsConfig(ApnsConfig::fromArray([
+                    'headers' => ['apns-priority' => '10'],
+                ]));
 
             try {
                 $report = $this->messaging->sendMulticast($message, $chunk);
@@ -80,7 +86,11 @@ class FcmNotificationService
 
         $message = CloudMessage::new()
                 ->withNotification($notification)
-                ->withData($data);
+                ->withData($data)
+                ->withAndroidConfig(AndroidConfig::fromArray(['priority' => 'high']))
+                ->withApnsConfig(ApnsConfig::fromArray([
+                    'headers' => ['apns-priority' => '10'],
+                ]));
 
         try {
             $report = $this->messaging->sendMulticast($message, $tokens);
@@ -99,14 +109,19 @@ class FcmNotificationService
     private function removeInvalidTokens($report, array $tokens): void
     {
         foreach ($report->failures()->getItems() as $failure) {
-            $target = $failure->target();
             $error = $failure->error();
+            $target = $failure->target();
+            $tokenValue = $target->value();
 
-            // Token sudah tidak valid — hapus dari DB
-            if ($error && in_array($error->value, ['UNREGISTERED', 'INVALID_ARGUMENT'])) {
-                $tokenValue = $target->value();
+            // Cek apakah error disebabkan oleh token yang tidak valid/unregistered
+            // Pada Kreait\Firebase v6+, kita bisa mengecek instance of atau pesan errornya
+            if ($error instanceof \Kreait\Firebase\Exception\Messaging\NotFound || 
+                $error instanceof \Kreait\Firebase\Exception\Messaging\InvalidMessage) {
+                
                 FcmToken::where('token', $tokenValue)->delete();
                 Log::info('[FCM] Removed invalid token: ' . substr($tokenValue, 0, 20) . '...');
+            } else {
+                Log::error('[FCM] Token failure: ' . $error->getMessage());
             }
         }
     }
