@@ -31,6 +31,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Log;
 use PhpParser\Node\Stmt\Return_;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -428,7 +429,6 @@ class AdminBeritaController extends Controller
             'id_pengguna' => $request->id_pengguna,
             'id_author' => $request->id_author,
             'editor_berita' => $request->id_editor,
-            'jabatan_author' => $request->jabatan_author,
             'id_approver' => '0',
             'kota_berita' => $request->kota_berita,
             'artikel_berita' => $request->artikel_berita,
@@ -531,6 +531,7 @@ class AdminBeritaController extends Controller
                         data: ['seo' => $request->seo_berita, 'type' => 'berita_baru'],
                         imageUrl: $imageUrl,
                     );
+                    Log::info('BERITA = ['.$request->judul_berita.']');
                 } catch (\Exception $e) {
                     \Log::error('[FCM] Gagal kirim notif saat store: ' . $e->getMessage());
                 }
@@ -718,7 +719,6 @@ class AdminBeritaController extends Controller
             'id_pengguna' => $request->id_pengguna,
             'id_author' => $request->id_author,
             'editor_berita' => $request->id_editor,
-            'jabatan_author' => $request->jabatan_author,
             'kota_berita' => $request->kota_berita,
             'artikel_berita' => $request->artikel_berita,
             'rangkuman_berita' => $request->rangkuman_berita,
