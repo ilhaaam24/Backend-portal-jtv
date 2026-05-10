@@ -35,7 +35,17 @@ class SorotController extends Controller
     {
         $title = Sorot::select('judul')
         ->where('status', 1)
-        ->where('tag', $id)->firstOrFail();
+        ->where('tag', $id)->first();
+
+        if (!$title) {
+            return response()->json([
+                'data' => [],
+                'section' => [
+                    'title' => $id,
+                    'link' =>  config('jp.path_url_be')."api/sorot/".$id,
+                ]
+            ], 200);
+        }
 
         $limit = request('limit') ?? config('jp.api_paginate');
         $limit = $limit >  config('jp.maxlimit') ? config('jp.maxlimit') : $limit;

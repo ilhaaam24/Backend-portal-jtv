@@ -40,7 +40,17 @@ class BeritaController extends Controller
      */
     public function detailBerita($id, News $News){
         // cache()->flush();
-        $title = Berita::select('judul_berita', 'id_berita')->where('seo_berita', $id)->firstOrFail();
+        $title = Berita::select('judul_berita', 'id_berita')->where('seo_berita', $id)->first();
+
+        if (!$title) {
+            return response()->json([
+                'data' => null,
+                'section' => [
+                    'title' => $id,
+                    'link' =>  config('jp.path_url_be')."api/news/detail/".$id,
+                ]
+            ], 200);
+        }
 
         $idberita = $title->id_berita;
 
@@ -61,7 +71,11 @@ class BeritaController extends Controller
 
         $data_berita = Berita::where('seo_berita', $id)
                     ->where('status_berita', '!=', 'trash')
-                    ->firstOrFail();
+                    ->first();
+        
+        if (!$data_berita) {
+             return response()->json(['data' => null, 'section' => $section['section']], 200);
+        }
 
         $get_biro = Pengguna::where('id_pengguna', $data_berita->id_pengguna)->with('biro')->first();
 
@@ -85,14 +99,19 @@ class BeritaController extends Controller
         $limit = request('limit') ?? config('jp.api_paginate');
         $limit = $limit >  config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
 
-        // return cache('users');
         $section =[
             'section' => [
                 'title' => 'Headline '.$id,
                 'link' =>  config('jp.path_url_be')."api/news/headline/".$id,
             ]];
 
-        $beritaheadline = BeritaResource::collection($News->getHeadline($id, $limit))
+        $result = $News->getHeadline($id, $limit);
+
+        if (empty($result)) {
+            return response()->json(['data' => [], 'section' => $section['section']], 200);
+        }
+
+        $beritaheadline = BeritaResource::collection($result)
         ->additional($section);
 
         return $beritaheadline;
@@ -108,7 +127,14 @@ class BeritaController extends Controller
                 "title" => "Berita Terbaru ".$id,
                 "link" =>  config('jp.path_url_be')."api/news/terbaru/".$id
             ]];
-        return BeritaResource::collection($News->getTerbaru($id, $limit))->additional($section);
+
+        $result = $News->getTerbaru($id, $limit);
+
+        if (empty($result)) {
+            return response()->json(['data' => [], 'section' => $section['section']], 200);
+        }
+
+        return BeritaResource::collection($result)->additional($section);
     }
 
     public function BeritaTerbaik(News $News){
@@ -134,8 +160,13 @@ class BeritaController extends Controller
                 "link" =>  config('jp.path_url_be')."api/news/pilihan/".$id
             ]];
 
+        $result = $News->getPilihan($id, $limit);
 
-        return BeritaResource::collection($News->getPilihan($id, $limit))->additional($section);
+        if (empty($result)) {
+            return response()->json(['data' => [], 'section' => $section['section']], 200);
+        }
+
+        return BeritaResource::collection($result)->additional($section);
     }
 
     public function beritaPopuler($id, News $News){
@@ -147,7 +178,14 @@ class BeritaController extends Controller
                 "title" => "Berita Terpopuler ".$id,
                 "link" =>  config('jp.path_url_be')."api/news/populer/".$id
             ]];
-        return BeritaResource::collection($News->getPopuler($id, $limit))->additional($section);
+
+        $result = $News->getPopuler($id, $limit);
+
+        if (empty($result)) {
+            return response()->json(['data' => [], 'section' => $section['section']], 200);
+        }
+
+        return BeritaResource::collection($result)->additional($section);
     }
 
     public function beritaBreaking($id, News $News){
@@ -160,7 +198,13 @@ class BeritaController extends Controller
                 "link" =>  config('jp.path_url_be')."api/news/breaking"
             ]];
 
-        return BeritaResource::collection($News->getBreaking($id, $limit))->additional($section);
+        $result = $News->getBreaking($id, $limit);
+
+        if (empty($result)) {
+            return response()->json(['data' => [], 'section' => $section['section']], 200);
+        }
+
+        return BeritaResource::collection($result)->additional($section);
     }
 
     public function opiniget()
@@ -172,25 +216,29 @@ class BeritaController extends Controller
 
     public function kategori(Request $request, $id)
     {
-        // 1. Set Limit jadi 150 sesuai request (atau ambil dari parameter URL kalau ada)
-        // Default 150 kalau gak ada request limit
         $limit = $request->input('limit', 150);
 
-        // Safety cap: Jangan biarkan user minta lebih dari maxlimit config (opsional)
-        // $limit = $limit > config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
+        // Cari Data Kategori berdasarkan SEO/Slug
+        $kategori = NewKategori::where('seo_kategori_berita', $id)->first();
 
-        // 2. Cari Data Kategori berdasarkan SEO/Slug
-        $kategori = NewKategori::where('seo_kategori_berita', $id)
-                        ->firstOrFail(); // Kalau gak ketemu, otomatis 404
+        // Jika kategori tidak ditemukan, return success dengan data kosong
+        if (!$kategori) {
+            return response()->json([
+                'data' => [],
+                'section' => [
+                    'title' => $id,
+                    'link'  => config('jp.path_url_be')."api/news/kategori/".$id,
+                ]
+            ], 200);
+        }
 
-        // 3. QUERY LANGSUNG (Bypass Service & Cache yang bikin error looping)
-        $dataBerita = Berita::with(['kategori', 'pengguna']) // Load relasi biar ringan
-            ->where('id_kategori', $kategori->id_kategori_berita) // Filter Kategori
-            ->where('status_berita', 'publish') // Cuma yang publish
-            ->latest('date_publish_berita') // Urutkan dari yang terbaru
-            ->paginate($limit); // ✨ Paginasi otomatis jalan bener disini
+        // QUERY LANGSUNG
+        $dataBerita = Berita::with(['kategori', 'pengguna'])
+            ->where('id_kategori', $kategori->id_kategori_berita)
+            ->where('status_berita', 'publish')
+            ->latest('date_publish_berita')
+            ->paginate($limit);
 
-        // 4. Siapkan Section Data
         $section = [
             'section' => [
                 'title' => $kategori->nama_kategori_berita,
@@ -198,26 +246,34 @@ class BeritaController extends Controller
             ]
         ];
 
-        // 5. Return Resource
         return BeritaResource::collection($dataBerita)->additional($section);
     }
 
     public function kanal(Request $request, $id)
     {
-        $limit = $request->input('limit', 150); // Default 150
+        $limit = $request->input('limit', 150);
 
-        // 1. Cari Data Kanal (Navbar)
-        // Pastikan Model Navbar sudah di-import: use App\Models\Navbar;
-        $navbar = \App\Models\Navbar::where('tag_judul', $id)->firstOrFail();
+        // Cari Data Kanal (Navbar)
+        $navbar = \App\Models\Navbar::where('tag_judul', $id)->first();
 
-        // 2. QUERY LANGSUNG (Bypass Service)
+        // Jika kanal tidak ditemukan, return success dengan data kosong
+        if (!$navbar) {
+            return response()->json([
+                'data' => [],
+                'section' => [
+                    'title' => $id,
+                    'link'  => config('jp.path_url_be')."api/news/kanal/".$id,
+                ]
+            ], 200);
+        }
+
+        // QUERY LANGSUNG
         $dataBerita = Berita::with(['kategori', 'pengguna'])
-            ->where('id_menu_berita', $navbar->id_navbar) // Filter berdasarkan ID Menu/Kanal
+            ->where('id_menu_berita', $navbar->id_navbar)
             ->where('status_berita', 'publish')
             ->latest('date_publish_berita')
             ->paginate($limit);
 
-        // 3. Siapkan Section
         $section = [
             'section' => [
                 'title' => $navbar->judul_navbar,
@@ -225,7 +281,6 @@ class BeritaController extends Controller
             ]
         ];
 
-        // 4. Return
         return BeritaResource::collection($dataBerita)->additional($section);
     }
 
@@ -236,12 +291,22 @@ class BeritaController extends Controller
 
         $title = Tag::select('nama_tag')
         ->where('seo_tag', $id)
-        ->firstOrFail();
+        ->first();
 
-        // return $news->getTag($id, $limit);
+        // Jika tag tidak ditemukan, return success dengan data kosong
+        if (!$title) {
+            return response()->json([
+                'data' => [],
+                'section' => [
+                    'title' => $id,
+                    'link'  => config('jp.path_url_be')."api/news/tag/".$id,
+                ]
+            ], 200);
+        }
+
          $tagjudul = BeritaResource::collection($news->getTag($id, 50))
             ->additional(['section' => [
-            'title' => ($title) ? $title->nama_tag :'',
+            'title' => $title->nama_tag,
             'link' =>  config('jp.path_url_be')."api/news/tag/".$id,
          ]
         ]);
@@ -264,8 +329,7 @@ class BeritaController extends Controller
             'title' => $id,
             'link' =>  config('jp.path_url_be')."api/news/author/".$id,
             ],
-            'author' => PenggunaResource::make(Pengguna::where('seo', $id)
-            ->firstOrFail())
+            'author' => PenggunaResource::make($pengguna)
         ]);
 
         return $author_name;

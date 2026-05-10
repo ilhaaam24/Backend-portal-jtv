@@ -24,7 +24,7 @@ class OpiniController extends Controller
 
         $title = Tipetulisan::select('kategori', 'judul')->where('kategori', $id)->first();
         
-        $judultipetulisan = $title->judul; 
+        $judultipetulisan = $title ? $title->judul : $id; 
 
 
         $section =[
@@ -116,7 +116,17 @@ class OpiniController extends Controller
         $limit = request('limit') ?? config('jp.api_paginate');
         $limit = $limit >  config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
 
-         $title = Opini::where('seo_opini', $detail)->firstOrFail();
+         $title = Opini::where('seo_opini', $detail)->first();
+
+        if (!$title) {
+            return response()->json([
+                'data' => null,
+                'section' => [
+                    'title' => $detail,
+                    'link' =>  config('jp.path_url_be')."api/tulisan-detail/".$detail,
+                ]
+            ], 200);
+        }
     
         $section =[
             'section' => [
@@ -162,13 +172,8 @@ class OpiniController extends Controller
         ];
 
          $hasil_data = $tulisan->getAuthorOpini($id, $status, $limit);
-            if($hasil_data->total()> 0){
-                return  OpiniResource::collection($tulisan->getAuthorOpini($id, $status, $limit))->additional($section);
-            }else{
-                $data['status'] = "error";
-                $data['message'] = 'No Record data!';
-                return  $data; 
-            }
+         
+         return OpiniResource::collection($hasil_data)->additional($section);
     }
 
 
