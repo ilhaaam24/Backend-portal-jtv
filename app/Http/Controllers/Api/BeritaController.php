@@ -254,7 +254,8 @@ class BeritaController extends Controller
         $limit = request('limit') ?? config('jp.api_paginate');
         $limit = $limit >  config('jp.maxlimit') ? config('jp.maxlimit') : $limit;
 
-         $author_name = BeritaResource::collection(Berita::latest('date_perubahan_berita')
+         $author_name = BeritaResource::collection(Berita::with(['kategori', 'pengguna.biro'])
+        ->latest('date_perubahan_berita')
         // ->where('rubrik', 1)
         ->where('status_berita', 'Publish')
         ->where('seo_pengguna', $id)
