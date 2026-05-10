@@ -18,7 +18,7 @@ class News
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return Berita::latest('date_publish_berita')
-                   ->with(['pengguna.biro'])
+                   ->with(['pengguna.biro', 'kategori'])
                     ->whereIn('id_pengguna', $penggunas)
                     ->where('status_berita', 'Publish')
                     ->where('tipe_berita_utama', '1')
@@ -38,11 +38,10 @@ class News
                     if (!$getbiro) return [];
                     $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
                    return Berita::latest('is_berita_terbaru')
-                    ->with(['pengguna.biro'])
+                    ->with(['pengguna.biro', 'kategori'])
                     ->whereIn('id_pengguna', $penggunas)
                     ->latest('date_publish_berita') 
                     ->where('status_berita', 'Publish')
-                    ->with('pengguna')
                     ->paginate($limit);
              
             })
@@ -54,7 +53,7 @@ class News
         return  cache()->lock("get_BeritaTerbaik", 10)->get(
             fn () => cache()->remember('BeritaTerbaik', now()->addMinutes(5), function () use ($limit) {
                    return Berita::latest('date_publish_berita')
-                    ->with(['pengguna.biro'])
+                    ->with(['pengguna.biro', 'kategori'])
                     ->where('status_berita', 'Publish')
                     ->paginate($limit);
              
@@ -71,7 +70,7 @@ class News
                     $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return Berita::latest('date_publish_berita')
-                   ->with(['pengguna.biro'])
+                   ->with(['pengguna.biro', 'kategori'])
                    ->whereIn('id_pengguna', $penggunas)
                    ->where('tipe_berita_pilihan', 1)
                    ->where('status_berita', 'Publish')
@@ -90,7 +89,7 @@ class News
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return Berita::orderByRaw('CAST(pengunjung_berita AS UNSIGNED) DESC')
-                   ->with(['pengguna.biro'])
+                   ->with(['pengguna.biro', 'kategori'])
                    ->whereIn('id_pengguna', $penggunas)
                    ->where('status_berita', 'Publish')
                    ->whereRaw('CAST(pengunjung_berita AS UNSIGNED) >= 0')
@@ -109,7 +108,7 @@ class News
                 $penggunas = $getbiro->penggunaz->pluck('id_pengguna');
 
                    return  Berita::latest('date_publish_berita')
-                   ->with(['pengguna.biro'])
+                   ->with(['pengguna.biro', 'kategori'])
                    ->whereIn('id_pengguna', $penggunas)
                    ->where('status_berita', 'Publish')
                    ->limit(config('jp.api_paginate'))
@@ -124,7 +123,7 @@ class News
         // cache()->flush();
         return  cache()->lock("get_BeritaDetail".$id, 10)->get(
             fn () => cache()->remember('detail'.$id, now()->addMinutes(2), function () use ($id) {
-                return $data_berita = Berita::where('seo_berita', $id)
+                return $data_berita = Berita::with('kategori')->where('seo_berita', $id)
                     ->where('status_berita', '!=', 'trash')
                     ->firstOrFail();  
             })
@@ -139,7 +138,7 @@ class News
                    ->latest('date_perubahan_berita')
                 //    ->where('rubrik', 1)
                    ->where('status_berita', 'Publish')
-                   ->where('seo_kategori_berita', $id)
+                   ->with('kategori')
                    ->paginate($limit);  
             })
         );
@@ -155,6 +154,7 @@ class News
                     ->where(function($q)use ($id) {
                             $q->where('tag_judul', $id);
                     })
+                   ->with('kategori')
                    ->paginate($limit);  
             })
         );
@@ -167,6 +167,7 @@ class News
                    return Berita::latest('date_perubahan_berita')
                    ->where('status_berita', 'Publish')
                    ->where('judul_berita','LIKE','%'.$id.'%')
+                   ->with('kategori')
                    ->paginate($limit);  
             })
         );
@@ -178,6 +179,7 @@ class News
         return  cache()->lock("get_SearchIndex:".$cacheKey, 10)->get(
         fn () => cache()->remember($cacheKey, now()->addMinutes(5), function () use ($search, $penulis, $kategori, $mulai, $sampai, $limit) {
                 return Berita::latest('date_perubahan_berita')
+                ->with('kategori')
                 ->where('status_berita', 'Publish')
                 ->where(function ($query)  use ($search, $penulis, $kategori, $mulai, $sampai) {
                     if($search!=''){
@@ -211,6 +213,7 @@ class News
         return  cache()->lock("get_Tag:".$id, 10)->get(
             fn () => cache()->remember('Tags:'.$id, now()->addMinutes(2), function () use ($id , $limit) {
                         return Berita::latest('tb_berita.date_perubahan_berita')
+                        ->with('kategori')
                         ->join('tagging', 'tb_berita.id_berita','=','tagging.id_berita')
                         ->join('tb_tag', 'tagging.id_tag','=','tb_tag.id_tag')
                         ->where('tb_berita.status_berita', 'Publish')
